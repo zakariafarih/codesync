@@ -162,11 +162,113 @@ export class LocalPackageDatabase implements PackageDatabase {
     await this.database.delete(this.metadataStoreName, packageMetadata.id)
   }
 
-  async fetchPackageContent(packageMetadata: Package.PackageMetadata): Promise<Package.Node[]> {
+  async fetchPackageContent(
+    packageMetadata: Package.PackageMetadata
+  ): Promise<Package.Node[]> {
     await this.connect()
-    if (this.database == null) throw new Error('[LocalPackageDatabase] Database: NULL')
-    const value = await this.database.getAllFromIndex(this.metadataStoreName, 'parentId', packageMetadata.id)
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+  
+    // Grab all metadata records that have parentId = packageMetadata.id
+    const value = await this.database.getAllFromIndex(
+      this.metadataStoreName,
+      'parentId',
+      packageMetadata.id
+    )
+    // 'value' is typed as Package.Node[] because
+    // LocalPackageDatabaseSchema['metadataStore'].value = Package.Node
     return value
+  }  
+
+  // Inside the LocalPackageDatabase class, just replicate snippet logic:
+
+  async createDrawingContent(drawingContent: Package.DrawingContent): Promise<void> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    await this.database.add(this.contentStoreName, {
+      id: drawingContent.id,
+      content: drawingContent.sceneData,
+    })
+  }
+
+  async createDrawingMetadata(drawingMetadata: Package.DrawingMetadata): Promise<void> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    await this.database.add(this.metadataStoreName, {
+      id: drawingMetadata.id,
+      createdAt: drawingMetadata.createdAt,
+      editedAt: drawingMetadata.editedAt,
+      name: drawingMetadata.name,
+      parentId: drawingMetadata.parentId,
+      type: drawingMetadata.type,
+    })
+  }
+
+  async fetchDrawingContent(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<Package.DrawingContent> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    const data = await this.database.get(this.contentStoreName, drawingMetadata.id)
+    if (!data) throw new Error(`[LocalPackageDatabase] Drawing content Not Found (ID: ${drawingMetadata.id})`)
+
+    return {
+      id: drawingMetadata.id,
+      sceneData: data.content,
+    }
+  }
+
+  async fetchDrawingMetadata(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<Package.DrawingMetadata> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    const data = await this.database.get(this.metadataStoreName, drawingMetadata.id)
+    if (!data) throw new Error(`[LocalPackageDatabase] Drawing metadata Not Found (ID: ${drawingMetadata.id})`)
+
+    // Return it as a DrawingMetadata
+    return {
+      id: data.id,
+      name: data.name,
+      type: Package.NodeType.drawing,
+      parentId: data.parentId,
+      createdAt: data.createdAt,
+      editedAt: data.editedAt,
+    }
+  }
+
+  async updateDrawingContent(drawingContent: Package.DrawingContent): Promise<void> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    const tnx = this.database.transaction(this.contentStoreName, 'readwrite')
+    const content = await tnx.store.get(drawingContent.id)
+    if (!content) throw new Error(`[LocalPackageDatabase] Drawing Not Found: ID("${drawingContent.id}")`)
+    await tnx.store.put({
+      ...content,
+      content: drawingContent.sceneData,
+    })
+    await tnx.done
+  }
+
+  async updateDrawingMetadata(drawingMetadata: Package.DrawingMetadata): Promise<void> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    const tnx = this.database.transaction(this.metadataStoreName, 'readwrite')
+    const data = await tnx.store.get(drawingMetadata.id)
+    if (!data) throw new Error(`[LocalPackageDatabase] Drawing Not Found: ID("${drawingMetadata.id}")`)
+
+    await tnx.store.put({
+      ...data,
+      ...drawingMetadata,
+    })
+    await tnx.done
+  }
+
+  async deleteDrawingContent(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<void> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    await this.database.delete(this.contentStoreName, drawingMetadata.id)
+  }
+
+  async deleteDrawingMetadata(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<void> {
+    await this.connect()
+    if (!this.database) throw new Error('[LocalPackageDatabase] Database: NULL')
+    await this.database.delete(this.metadataStoreName, drawingMetadata.id)
   }
 
   async fetchPackageMetadata({ id }: Pick<Package.SnippetMetadata, 'id'>): Promise<Package.PackageMetadata> {

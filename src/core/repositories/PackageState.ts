@@ -21,6 +21,18 @@ export enum PackageStatus {
   Deleted = 'Deleted',
 }
 
+export enum DrawingStatus {
+  Creating = 'Creating',
+  ContentLoading = 'ContentLoading',
+  ContentLoaded = 'Default',
+  ChangesUnsaved = 'ChangesUnsaved',
+  ChangesSaving = 'ChangesSaving',
+  ChangesSaved = 'Default',
+  Deleting = 'Deleting',
+  Deleted = 'Deleted',
+  Default = 'Default',
+}
+
 export interface PackageState {
   setSnippetContent(snippetContent: Package.SnippetContent): void
   setSnippetMetadata(snippetMetadata: Package.SnippetMetadata): void
@@ -32,4 +44,11 @@ export interface PackageState {
   deleteSnippetContent(snippet: Pick<Package.Node, 'id'>): void
   deleteSnippetMetadata(snippet: Pick<Package.Node, 'id'>): void
   deletePackageMetadata(packageMetadata: Pick<Package.Node, 'id'>): void
+
+  setDrawingMetadata(drawingMetadata: Package.DrawingMetadata): void
+  setDrawingContent(drawingContent: Package.DrawingContent): void
+  setDrawingStatus(drawing: Pick<Package.Node, 'id'>, status: DrawingStatus): void
+
+  deleteDrawingMetadata(drawing: Pick<Package.Node, 'id'>): void
+  deleteDrawingContent(drawing: Pick<Package.Node, 'id'>): void
 }

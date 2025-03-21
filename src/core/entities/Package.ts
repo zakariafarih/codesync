@@ -4,16 +4,25 @@ export namespace Package {
   export enum NodeType {
     package = 'package',
     snippet = 'snippet',
+    drawing = 'drawing',
   }
 
   export interface Node {
     id: NodeId
     name: string
-    /** Parent ID is Null when Node is the root */
     parentId: NodeId
     type: NodeType
     editedAt: EpochTimeStamp
     createdAt: EpochTimeStamp
+  }
+
+  export interface DrawingMetadata extends Node {
+    type: NodeType.drawing
+  }
+
+  export interface DrawingContent {
+    id: DrawingMetadata['id']
+    sceneData: string
   }
 
   export interface SnippetMetadata extends Node {
@@ -30,7 +39,7 @@ export namespace Package {
   }
 
   export type SnippetType = SnippetMetadata & SnippetContent
-  export type PackageContent = (SnippetMetadata | PackageMetadata)[]
+  export type PackageContent = (SnippetMetadata | PackageMetadata | DrawingMetadata)[];
 
   export const Workspace: PackageMetadata = {
     type: NodeType.package,

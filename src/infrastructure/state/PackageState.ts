@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { Package } from '../../core/entities/Package'
-import { PackageState, SnippetStatus, PackageStatus } from '../../core/repositories/PackageState'
+import { PackageState, SnippetStatus, PackageStatus, DrawingStatus } from '../../core/repositories/PackageState'
 import { AppDispatch, RootState } from './app/store'
 
 interface ExplorerState {
@@ -9,6 +9,10 @@ interface ExplorerState {
   snippetContent: Record<Package.NodeId, Package.SnippetContent>
   snippetStatus: Record<Package.NodeId, SnippetStatus>
   packageStatus: Record<Package.NodeId, PackageStatus>
+
+  drawingMetadata: Record<Package.NodeId, Package.DrawingMetadata>
+  drawingContent: Record<Package.NodeId, Package.DrawingContent>
+  drawingStatus: Record<Package.NodeId, DrawingStatus>
 }
 
 const initialState: ExplorerState = {
@@ -21,6 +25,10 @@ const initialState: ExplorerState = {
   packageStatus: {
     [Package.Workspace.id]: PackageStatus.Default
   },
+
+  drawingMetadata: {},
+  drawingContent: {},
+  drawingStatus: {},
 }
 
 const reduxPackageState = createSlice({
@@ -61,6 +69,30 @@ const reduxPackageState = createSlice({
     deleteSnippetContent(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
       delete state.snippetContent[payload.id]
     },
+
+    // DRAWING
+    setDrawingMetadata(state, { payload }: PayloadAction<Package.DrawingMetadata>) {
+      state.drawingMetadata[payload.id] = payload
+    },
+    setDrawingContent(state, { payload }: PayloadAction<Package.DrawingContent>) {
+      state.drawingContent[payload.id] = payload
+    },
+    setDrawingStatus(
+      state,
+      { payload }: PayloadAction<{ drawing: Pick<Package.Node, 'id'>; status: DrawingStatus }>
+    ) {
+      if (payload.status === DrawingStatus.Deleted) {
+        delete state.drawingStatus[payload.drawing.id]
+      } else {
+        state.drawingStatus[payload.drawing.id] = payload.status
+      }
+    },
+    deleteDrawingMetadata(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
+      delete state.drawingMetadata[payload.id]
+    },
+    deleteDrawingContent(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
+      delete state.drawingContent[payload.id]
+    },
   },
 })
 
@@ -98,6 +130,39 @@ class ReduxPackageStateManager implements PackageState {
   deletePackageMetadata(pkg: Pick<Package.Node, 'id'>): void {
     this.dispatch(reduxPackageState.actions.deletePackageMetadata(pkg))
   }
+  setDrawingMetadata(drawing: Package.DrawingMetadata): void {
+    this.dispatch(reduxPackageState.actions.setDrawingMetadata(drawing))
+  }
+  setDrawingContent(content: Package.DrawingContent): void {
+    this.dispatch(reduxPackageState.actions.setDrawingContent(content))
+  }
+  setDrawingStatus(drawing: Pick<Package.Node, 'id'>, status: DrawingStatus): void {
+    this.dispatch(reduxPackageState.actions.setDrawingStatus({ drawing, status }))
+  }
+  deleteDrawingMetadata(drawing: Pick<Package.Node, 'id'>): void {
+    this.dispatch(reduxPackageState.actions.deleteDrawingMetadata(drawing))
+  }
+  deleteDrawingContent(drawing: Pick<Package.Node, 'id'>): void {
+    this.dispatch(reduxPackageState.actions.deleteDrawingContent(drawing))
+  }
+}
+
+export const selectDrawingMetadata = (drawing: Pick<Package.DrawingMetadata, 'id'>) => {
+  return (state: RootState) => {
+    return state.packageState.drawingMetadata[drawing.id]
+  }
+}
+
+export const selectDrawingContent = (drawing: Pick<Package.DrawingMetadata, 'id'>) => {
+  return (state: RootState) => {
+    return state.packageState.drawingContent[drawing.id]
+  }
+}
+
+export const selectDrawingStatus = (drawing: Pick<Package.DrawingMetadata, 'id'>) => {
+  return (state: RootState) => {
+    return state.packageState.drawingStatus[drawing.id]
+  }
 }
 
 export default reduxPackageState.reducer
@@ -112,7 +177,7 @@ export const useReduxPackageState = (dispatch: AppDispatch) => {
 
 export const selectPackageContent = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) => {
   return (state: RootState) => {
-    const content: (Package.PackageMetadata | Package.SnippetMetadata)[] = []
+    const content: (Package.PackageMetadata | Package.SnippetMetadata | Package.DrawingMetadata)[] = []
 
     for (const nodeId in state.packageState.packageMetadata) {
       const node = state.packageState.packageMetadata[nodeId]
@@ -120,9 +185,15 @@ export const selectPackageContent = (packageMetadata: Pick<Package.PackageMetada
         content.push(node)
       }
     }
-
     for (const nodeId in state.packageState.snippetMetadata) {
       const node = state.packageState.snippetMetadata[nodeId]
+      if (node && node.parentId === packageMetadata.id) {
+        content.push(node)
+      }
+    }
+
+    for (const nodeId in state.packageState.drawingMetadata) {
+      const node = state.packageState.drawingMetadata[nodeId]
       if (node && node.parentId === packageMetadata.id) {
         content.push(node)
       }

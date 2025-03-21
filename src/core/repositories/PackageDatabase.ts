@@ -19,6 +19,24 @@ export interface PackageDatabase extends Database {
   
   fetchSnippetContent(snippet: Pick<Package.SnippetMetadata, 'id'>): Promise<Package.SnippetContent>
   fetchSnippetMetadata(snippet: Pick<Package.SnippetMetadata, 'id'>): Promise<Package.SnippetMetadata>
-  fetchPackageContent(packageMetadata: Pick<Package.PackageMetadata, 'id'>): Promise<(Package.SnippetMetadata | Package.PackageMetadata)[]>
+  fetchPackageContent(
+    packageMetadata: Pick<Package.PackageMetadata, 'id'>
+  ): Promise<(Package.SnippetMetadata | Package.PackageMetadata | Package.DrawingMetadata)[]>
   fetchPackageMetadata(packageMetadata: Pick<Package.PackageMetadata, 'id'>): Promise<Package.PackageMetadata>
+
+  // Drawing: Create
+  createDrawingMetadata(drawingMetadata: Package.DrawingMetadata): Promise<void>
+  createDrawingContent(drawingContent: Package.DrawingContent): Promise<void>
+
+  // Drawing: Read
+  fetchDrawingMetadata(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<Package.DrawingMetadata>
+  fetchDrawingContent(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<Package.DrawingContent>
+
+  // Drawing: Update
+  updateDrawingMetadata(drawingMetadata: Package.DrawingMetadata): Promise<void>
+  updateDrawingContent(drawingContent: Package.DrawingContent): Promise<void>
+
+  // Drawing: Delete
+  deleteDrawingMetadata(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<void>
+  deleteDrawingContent(drawingMetadata: Pick<Package.DrawingMetadata, 'id'>): Promise<void>
 }

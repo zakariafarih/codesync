@@ -17,6 +17,7 @@ import { AppDispatch } from '../infrastructure/state/app/store'
 import { Package as PackageEntity } from '../core/entities/Package'
 import { useMemo } from 'react'
 import { useDownloadManager } from '../infrastructure/downloader'
+import { createDrawing } from '../core/usecases/Drawing'
 
 const databaseId = 'db1'
 
@@ -102,6 +103,20 @@ export function usePackageAdapter(metadata: Pick<PackageEntity.PackageMetadata, 
     }, localDatabase, directoryState)
   }, [metadata.id])
 
+  const createDrawingInPackage = useMemo(
+    () => async (params: { name: string }) => {
+      return createDrawing(
+        {
+          name: params.name,
+          parentId: metadata.id,
+        },
+        localDatabase,
+        directoryState
+      )
+    },
+    [metadata.id]
+  )
+
   const fetchPackageContent = useMemo(() => () => {
     Package.fetchPackageContent(metadata, localDatabase, directoryState)
   }, [metadata.id])
@@ -133,6 +148,7 @@ export function usePackageAdapter(metadata: Pick<PackageEntity.PackageMetadata, 
   return {
     createSnippet,
     createPackage,
+    createDrawing: createDrawingInPackage,
     fetchPackageContent,
     deletePackage,
     fetchParentMetadata,

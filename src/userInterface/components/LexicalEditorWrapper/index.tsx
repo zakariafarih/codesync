@@ -11,7 +11,6 @@ import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary'
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin'
 
 const theme = {
-  // Theme styling goes here
 }
 
 export interface LexicalEditorWrapperProps {
@@ -26,7 +25,6 @@ export function LexicalEditorWrapper({ className }: LexicalEditorWrapperProps) {
 
   function onChange(editorState: EditorState): void {
     editorState.read(() => {
-      // Read the contents of the EditorState here.
       const root = $getRoot()
       const selection = $getSelection()
 
