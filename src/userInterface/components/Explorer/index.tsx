@@ -19,6 +19,7 @@ import { Package } from '../../../core/entities/Package'
 import { useSnippetAdapter, usePackageAdapter } from '../../../adapters/PackageAdapter'
 import { PackageStatus } from '../../../core/repositories/PackageState'
 import { useNavigate } from 'react-router-dom'
+import { CreateModal } from '../Modal'
 
 export interface ExplorerProps {
   workspace: Package.PackageMetadata
@@ -77,25 +78,34 @@ const deviceContextOptions: ContextMenuOptions = [
 ]
 
 export function Explorer({ workspace }: ExplorerProps) {
-  // Note: usePackageAdapter now returns Package-related operations.
+  // Use PackageAdapter for package operations.
   const { createPackage, fetchPackageContent, createSnippet } = usePackageAdapter(workspace)
-
   useEffect(fetchPackageContent, [workspace.id])
 
   const [contextMenu, setContextMenu] = useState<ReactNode>()
   const containerRef = useRef(null)
   const itemsRef = useRef(null)
 
-  const createNewSnippet = async () => {
-    const snippetName = prompt('Enter Snippet Name')
-    if (snippetName === null) return
-    createSnippet({ name: snippetName })
+  // Modal state for creating new snippet and package
+  const [isSnippetModalOpen, setSnippetModalOpen] = useState(false)
+  const [isPackageModalOpen, setPackageModalOpen] = useState(false)
+
+  // Handlers for CreateModal OK events
+  const handleSnippetModalOk = (name: string) => {
+    createSnippet({ name })
+    setSnippetModalOpen(false)
+  }
+  const handlePackageModalOk = (name: string) => {
+    createPackage({ name })
+    setPackageModalOpen(false)
   }
 
+  // Instead of prompt, we open the corresponding modal
+  const createNewSnippet = async () => {
+    setSnippetModalOpen(true)
+  }
   const createNewPackage = async () => {
-    const packageName = prompt('Enter Package Name')
-    if (packageName === null) return
-    createPackage({ name: packageName })
+    setPackageModalOpen(true)
   }
 
   const itemsExplorerContextOptions: ContextMenuOptions = [
@@ -158,6 +168,21 @@ export function Explorer({ workspace }: ExplorerProps) {
           <PackageItems package={workspace} showContextMenu={showContextMenu} />
         </div>
       </div>
+      {/* Render the CreateModal components */}
+      <CreateModal
+        title="Create New Snippet"
+        isOpen={isSnippetModalOpen}
+        onOk={handleSnippetModalOk}
+        onCancel={() => setSnippetModalOpen(false)}
+        placeholder="Enter snippet name"
+      />
+      <CreateModal
+        title="Create New Package"
+        isOpen={isPackageModalOpen}
+        onOk={handlePackageModalOk}
+        onCancel={() => setPackageModalOpen(false)}
+        placeholder="Enter package name"
+      />
     </>
   )
 }

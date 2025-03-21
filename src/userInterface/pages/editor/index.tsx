@@ -9,6 +9,7 @@ import { FloatingPanel, FloatingPanelRef } from 'antd-mobile'
 import { Tabs, TabsProps } from 'antd'
 import { useWindowSize } from 'react-use'
 import { SubNav } from '../../components/Nav/SubNav'
+import { CreateModal } from '../../components/Modal'
 import style from './index.module.scss'
 import { AboutAppWrapper } from '../../components/AboutAppWrapper'
 
@@ -17,8 +18,6 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string
 export function EditorPage() {
   const { parentId, folderId, fileId } = useParams()
 
-  // Use PackageEntity.Workspace as default workspace.
-  // In our new naming, folder becomes package and file becomes snippet.
   let workspace: Pick<PackageEntity.PackageMetadata, 'parentId' | 'id'> = PackageEntity.Workspace
 
   if (parentId && folderId) {
@@ -30,10 +29,10 @@ export function EditorPage() {
       key: '-1',
       label: 'About',
       children: <AboutAppWrapper />
-    },
-    // Additional tabs (e.g. editor) will be added dynamically.
+    }
   ])
   const [activeFileKey, setActiveFileKey] = useState<string>()
+  const [isSnippetModalOpen, setIsSnippetModalOpen] = useState(false)
 
   const {
     fetchPackageMetadata,
@@ -46,12 +45,10 @@ export function EditorPage() {
   useEffect(fetchPackageMetadata, [])
   useEffect(fetchPackageContent, [])
 
-  // Open a snippet (file) in the editor
   const openFile = useMemo(() => (snippet: PackageEntity.SnippetMetadata, dynamicPosition = true) => {
     const targetIndex = files.findIndex((pane) => pane.key === snippet.id)
 
     if (targetIndex === -1) {
-      // Open snippet next to current active tab
       let activeIndex = files.findIndex((pane) => pane.key === activeFileKey)
       if (activeIndex === -1 || !dynamicPosition) activeIndex = files.length - 1
 
@@ -81,7 +78,6 @@ export function EditorPage() {
     return
   }, [files])
 
-  // When packageContent updates, if a snippet with matching id is found, open it.
   useEffect(() => {
     packageContent.forEach(node => {
       if (node.type === PackageEntity.NodeType.snippet && node.id === fileId) {
@@ -100,11 +96,7 @@ export function EditorPage() {
 
   const onEdit = async (targetKey: TargetKey, action: 'add' | 'remove') => {
     if (action === 'add') {
-      const filename = prompt('Enter Snippet Name')
-      if (filename) {
-        const snippet = await createSnippet({ name: filename })
-        openFile(snippet, false)
-      }
+      setIsSnippetModalOpen(true)
     } else {
       closeFile(targetKey)
     }
@@ -120,17 +112,17 @@ export function EditorPage() {
 
   return (
     <div className={style.container}>
-      {
-        windowWidth >= 800
-          ? <SubNav title='Editor' className={style.sideNav}>
+      {windowWidth >= 800 ? (
+        <SubNav title='Editor' className={style.sideNav}>
+          <SideExplorer workspace={packageMetadata} openSnippet={openFile} />
+        </SubNav>
+      ) : (
+        <FloatingPanel anchors={anchors} ref={ref}>
+          <div style={{ padding: '0 16px 16px 16px' }}>
             <SideExplorer workspace={packageMetadata} openSnippet={openFile} />
-          </SubNav>
-          : <FloatingPanel anchors={anchors} ref={ref}>
-            <div style={{ padding: '0 16px 16px 16px' }}>
-              <SideExplorer workspace={packageMetadata} openSnippet={openFile} />
-            </div>
-          </FloatingPanel>
-      }
+          </div>
+        </FloatingPanel>
+      )}
       <Tabs
         className={style.editorArea}
         onChange={onChange}
@@ -139,6 +131,17 @@ export function EditorPage() {
         onEdit={onEdit}
         items={files}
         tabBarGutter={0}
+      />
+      <CreateModal
+        title="Create New Snippet"
+        isOpen={isSnippetModalOpen}
+        onOk={async (name) => {
+          const snippet = await createSnippet({ name })
+          openFile(snippet, false)
+          setIsSnippetModalOpen(false)
+        }}
+        onCancel={() => setIsSnippetModalOpen(false)}
+        placeholder="Enter snippet name"
       />
     </div>
   )

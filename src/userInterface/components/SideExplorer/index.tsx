@@ -1,14 +1,16 @@
 import { ReactComponent as ChevronRightIcon } from '../../icons/chevron-right.svg'
 import { ReactComponent as FileIcon } from '../../icons/file.svg'
+import { useState, useEffect } from 'react'
+import { CloudDownloadOutlined, DeleteOutlined, FileAddOutlined, FolderAddOutlined } from '@ant-design/icons'
+import { Empty } from 'antd'
+import { CreateModal } from '../Modal'
+import { DeleteModal } from '../DeleteModal'
 import style from './index.module.scss'
 import { useAppDispatch, useAppSelector } from '../../../infrastructure/state/app/hooks'
 import { selectFolderExpansionState, toggleExpansion } from '../../../infrastructure/state/sideExplorerSlice'
 import { Package as PackageEntity } from '../../../core/entities/Package'
-import { useEffect } from 'react'
 import { usePackageAdapter, useSnippetAdapter } from '../../../adapters/PackageAdapter'
 import { PackageStatus } from '../../../core/repositories/PackageState'
-import { CloudDownloadOutlined, DeleteOutlined, FileAddOutlined, FolderAddOutlined } from '@ant-design/icons'
-import { Empty } from 'antd'
 
 interface PackageProps {
   packageName: PackageEntity.PackageMetadata
@@ -32,21 +34,19 @@ interface SideExplorerProps {
 
 export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
   const { createSnippet, createPackage } = usePackageAdapter(workspace)
+  const [isSnippetModalOpen, setIsSnippetModalOpen] = useState(false)
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
 
-  const createNewSnippet = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+  const createNewSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
     event.preventDefault()
-    const snippetName = prompt('Enter Snippet Name')
-    if (snippetName === null) return
-    createSnippet({ name: snippetName })
+    setIsSnippetModalOpen(true)
   }
 
-  const createNewPackage = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+  const createNewPackage = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
     event.preventDefault()
-    const packageName = prompt('Enter Package Name')
-    if (packageName === null) return
-    createPackage({ name: packageName })
+    setIsPackageModalOpen(true)
   }
 
   return <>
@@ -69,6 +69,27 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
     </div>
 
     <FolderItems packageName={workspace} openSnippet={openSnippet} />
+
+    <CreateModal
+      title="Create New Snippet"
+      isOpen={isSnippetModalOpen}
+      onOk={(name) => {
+        createSnippet({ name })
+        setIsSnippetModalOpen(false)
+      }}
+      onCancel={() => setIsSnippetModalOpen(false)}
+      placeholder="Enter snippet name"
+    />
+    <CreateModal
+      title="Create New Package"
+      isOpen={isPackageModalOpen}
+      onOk={(name) => {
+        createPackage({ name })
+        setIsPackageModalOpen(false)
+      }}
+      onCancel={() => setIsPackageModalOpen(false)}
+      placeholder="Enter package name"
+    />
   </>
 }
 
@@ -96,13 +117,12 @@ export function FolderItems({ packageName, openSnippet }: ExplorerItemsProps) {
 
 export function Snippet({ snippet, openSnippet }: SnippetProps) {
   const { deleteSnippet, downloadSnippet } = useSnippetAdapter(snippet)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const deleteThisSnippet = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
     event.preventDefault()
-    const isConfirmedDelete = confirm(`Permanently Delete Snippet: ${snippet.name}`)
-    if (!isConfirmedDelete) return
-    deleteSnippet()
+    setIsDeleteModalOpen(true)
   }
 
   const downloadThisSnippet = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
@@ -131,6 +151,16 @@ export function Snippet({ snippet, openSnippet }: SnippetProps) {
           />
         </div>
       </div>
+      <DeleteModal
+        title="Delete Snippet"
+        isOpen={isDeleteModalOpen}
+        onOk={() => {
+          deleteSnippet()
+          setIsDeleteModalOpen(false)
+        }}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        itemName={snippet.name}
+      />
     </div>
   )
 }
@@ -139,29 +169,26 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
   const isExpanded = useAppSelector(selectFolderExpansionState(packageName))
   const dispatch = useAppDispatch()
   const { createPackage, createSnippet, deletePackage } = usePackageAdapter(packageName)
+  const [isSnippetModalOpen, setIsSnippetModalOpen] = useState(false)
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const deleteThisPackage = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
     event.preventDefault()
-    const isConfirmedDelete = confirm(`Permanently Delete Package: ${packageName.name}`)
-    if (!isConfirmedDelete) return
-    deletePackage()
+    setIsDeleteModalOpen(true)
   }
 
-  const createNewSnippet = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+  const createNewSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
     event.preventDefault()
-    const snippetName = prompt('Enter Snippet Name')
-    if (snippetName === null) return
-    createSnippet({ name: snippetName })
+    setIsSnippetModalOpen(true)
   }
 
-  const createNewPackage = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+  const createNewPackage = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
     event.preventDefault()
-    const packageNameInput = prompt('Enter Package Name')
-    if (packageNameInput === null) return
-    createPackage({ name: packageNameInput })
+    setIsPackageModalOpen(true)
   }
 
   const handleFolderClick = () => {
@@ -198,6 +225,38 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
       <div className={style.child}>
         {isExpanded ? <FolderItems packageName={packageName} openSnippet={openSnippet} /> : null}
       </div>
+
+      <DeleteModal
+        title="Delete Package"
+        isOpen={isDeleteModalOpen}
+        onOk={() => {
+          deletePackage()
+          setIsDeleteModalOpen(false)
+        }}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        itemName={packageName.name}
+      />
+
+      <CreateModal
+        title="Create New Snippet"
+        isOpen={isSnippetModalOpen}
+        onOk={(name) => {
+          createSnippet({ name })
+          setIsSnippetModalOpen(false)
+        }}
+        onCancel={() => setIsSnippetModalOpen(false)}
+        placeholder="Enter snippet name"
+      />
+      <CreateModal
+        title="Create New Package"
+        isOpen={isPackageModalOpen}
+        onOk={(name) => {
+          createPackage({ name })
+          setIsPackageModalOpen(false)
+        }}
+        onCancel={() => setIsPackageModalOpen(false)}
+        placeholder="Enter package name"
+      />
     </div>
   )
 }
