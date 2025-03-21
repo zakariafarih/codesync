@@ -1,0 +1,33 @@
+.container {
+  background-color: #031C33;
+  width: 56px;
+
+  .option {
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    cursor: pointer;
+    color: #D6DEEB;
+
+    &:hover {
+      color: #89DDFF;
+    }
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  .active {
+    color: #82AAFF;
+  }
+}
+
+.logo {
+  width: 32px;
+  height: auto;
+}

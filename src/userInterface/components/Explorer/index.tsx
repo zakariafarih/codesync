@@ -1,0 +1,282 @@
+import React, { ReactNode, useEffect, useRef, useState } from 'react'
+import styles from './index.module.scss'
+import { ReactComponent as PackageIcon } from '../../icons/package.svg'
+import { ReactComponent as SnippetIcon } from '../../icons/snippet.svg'
+import { ReactComponent as ChevronRightIcon } from '../../icons/chevron-right.svg'
+import { ReactComponent as TrashIcon } from '../../icons/trash.svg'
+import { ReactComponent as RenameIcon } from '../../icons/rename.svg'
+import { ReactComponent as LinkExternalIcon } from '../../icons/link-external.svg'
+import { ReactComponent as NewSnippetIcon } from '../../icons/new-snippet.svg'
+import { ReactComponent as NewPackageIcon } from '../../icons/new-package.svg'
+import { ReactComponent as ClearAllIcon } from '../../icons/clear-all.svg'
+import { ReactComponent as VMIcon } from '../../icons/vm.svg'
+import { ReactComponent as DesktopDownloadIcon } from '../../icons/desktop-download.svg'
+import { ReactComponent as AddIcon } from '../../icons/add.svg'
+import { ReactComponent as LinkIcon } from '../../icons/link.svg'
+import { ContextMenu, ContextMenuOptions } from '../ContextMenu'
+import { NavLinkPersist } from '../../supports/Persistence'
+import { Package } from '../../../core/entities/Package'
+import { useSnippetAdapter, usePackageAdapter } from '../../../adapters/PackageAdapter'
+import { PackageStatus } from '../../../core/repositories/PackageState'
+import { useNavigate } from 'react-router-dom'
+
+export interface ExplorerProps {
+  workspace: Package.PackageMetadata
+}
+
+interface PackageItemProps {
+  package: Package.PackageMetadata
+  showContextMenu: (event: React.MouseEvent<Element, MouseEvent>, item: string | ContextMenuOptions) => void
+}
+
+interface SnippetProps {
+  package: Package.PackageMetadata
+  snippet: Package.SnippetMetadata
+  showContextMenu: (event: React.MouseEvent<Element, MouseEvent>, item: string | ContextMenuOptions) => void
+}
+
+interface ExplorerItemsProps {
+  package: Package.PackageMetadata
+  showContextMenu: (event: React.MouseEvent<Element, MouseEvent>, item: string | ContextMenuOptions) => void
+}
+
+const breadcrumbContextOptions: ContextMenuOptions = [
+  { icon: LinkIcon, text: 'Copy Link' },
+  null,
+  { icon: LinkExternalIcon, text: 'Open in New Tab' },
+  { icon: LinkExternalIcon, text: 'Open in Editor' },
+]
+
+const packageContextOptions: ContextMenuOptions = [
+  { icon: RenameIcon, text: 'Rename Package' },
+  { icon: TrashIcon, text: 'Delete Package' },
+  null,
+  { icon: LinkExternalIcon, text: 'Open Package in Editor' },
+]
+
+const deviceExplorerContextOptions: ContextMenuOptions = [
+  {
+    icon: AddIcon,
+    text: 'New Device'
+  }
+]
+
+const deviceContextOptions: ContextMenuOptions = [
+  {
+    icon: ClearAllIcon,
+    text: 'Format Device'
+  },
+  {
+    icon: TrashIcon,
+    text: 'Delete Device'
+  },
+  {
+    icon: LinkExternalIcon,
+    text: 'Open Device in Editor'
+  }
+]
+
+export function Explorer({ workspace }: ExplorerProps) {
+  // Note: usePackageAdapter now returns Package-related operations.
+  const { createPackage, fetchPackageContent, createSnippet } = usePackageAdapter(workspace)
+
+  useEffect(fetchPackageContent, [workspace.id])
+
+  const [contextMenu, setContextMenu] = useState<ReactNode>()
+  const containerRef = useRef(null)
+  const itemsRef = useRef(null)
+
+  const createNewSnippet = async () => {
+    const snippetName = prompt('Enter Snippet Name')
+    if (snippetName === null) return
+    createSnippet({ name: snippetName })
+  }
+
+  const createNewPackage = async () => {
+    const packageName = prompt('Enter Package Name')
+    if (packageName === null) return
+    createPackage({ name: packageName })
+  }
+
+  const itemsExplorerContextOptions: ContextMenuOptions = [
+    { icon: NewSnippetIcon, text: 'New Snippet', onClick: createNewSnippet },
+    { icon: NewPackageIcon, text: 'New Package', onClick: createNewPackage },
+  ]
+
+  const showContextMenu = (
+    event: React.MouseEvent<Element, MouseEvent>,
+    item: string | ContextMenuOptions
+  ) => {
+    event.preventDefault()
+    if (item === 'items') {
+      event.stopPropagation()
+      const itemsElm: HTMLDivElement = itemsRef.current!
+      if (event.pageY >= itemsElm.offsetTop)
+        setContextMenu(<ContextMenu options={itemsExplorerContextOptions} hide={hideContextMenu} event={event} />)
+    }
+    else if (item === 'devices') {
+      event.stopPropagation()
+      const itemsElm: HTMLDivElement = itemsRef.current!
+      if (event.pageY >= itemsElm.offsetTop)
+        setContextMenu(<ContextMenu options={deviceExplorerContextOptions} hide={hideContextMenu} event={event} />)
+    }
+    else if (item === 'package') {
+      event.stopPropagation()
+      setContextMenu(<ContextMenu options={packageContextOptions} hide={hideContextMenu} event={event} />)
+    }
+    else if (item === 'device') {
+      event.stopPropagation()
+      setContextMenu(<ContextMenu options={deviceContextOptions} hide={hideContextMenu} event={event} />)
+    }
+    else if (item === 'breadcrumb') {
+      event.stopPropagation()
+      setContextMenu(<ContextMenu options={breadcrumbContextOptions} hide={hideContextMenu} event={event} />)
+    }
+    else if (typeof item !== 'string') {
+      event.stopPropagation()
+      setContextMenu(<ContextMenu options={item} hide={hideContextMenu} event={event} />)
+    }
+    else {
+      throw new Error('[Explorer] Context Type Not Found!!')
+    }
+  }
+
+  const hideContextMenu = () => {
+    setContextMenu(<></>)
+  }
+
+  return (
+    <>
+      {contextMenu}
+      <div
+        ref={containerRef}
+        className={styles.container}
+        onContextMenu={(event) => showContextMenu(event, itemsExplorerContextOptions)}>
+        <BreadCrumbs package={workspace} showContextMenu={showContextMenu} />
+        <hr />
+        <div ref={itemsRef}>
+          <PackageItems package={workspace} showContextMenu={showContextMenu} />
+        </div>
+      </div>
+    </>
+  )
+}
+
+/**
+ * @todo **ancestors** State Not Updating!!!
+ */
+export function BreadCrumbs({ package: pkg, showContextMenu }: ExplorerItemsProps) {
+  const { ansestors, fetchAncestors } = usePackageAdapter(pkg)
+  useEffect(fetchAncestors, [pkg.id])
+
+  if (ansestors.length === 0) {
+    return <div>Loading...</div>
+  }
+
+  return (
+    <div className={styles.breadcrumbs}>
+      {ansestors.map((pkg, index) => {
+        const breadcrumbTarget = pkg.id === Package.Workspace.id
+          ? '/explorer'
+          : `/explorer/${pkg.parentId}/${pkg.id}`
+
+        return (
+          <React.Fragment key={pkg.id}>
+            <NavLinkPersist
+              to={breadcrumbTarget}
+              className={styles.breadcrumb}
+              onContextMenu={(event) => showContextMenu(event, 'breadcrumb')}>
+              {pkg.name}
+            </NavLinkPersist>
+            {index !== ansestors.length - 1 ? <ChevronRightIcon /> : null}
+          </React.Fragment>
+        )
+      })}
+    </div>
+  )
+}
+
+export function PackageItems({ package: pkg, showContextMenu }: ExplorerItemsProps) {
+  const { fetchPackageContent, packageContent, packageStatus } = usePackageAdapter(pkg)
+  const itemsRef = useRef(null)
+
+  useEffect(fetchPackageContent, [pkg.id])
+
+  if (packageStatus === PackageStatus.ContentLoading || packageStatus === PackageStatus.Creating) {
+    return <div>Loading...</div>
+  }
+
+  return (
+    <div className={styles.items} ref={itemsRef}>
+      {packageContent.length === 0 && <div className={styles.emptyFolderShowCase}>This Package is Empty!</div>}
+      {packageContent.map(item => {
+        if (item.type === Package.NodeType.package) {
+          return <PackageItem key={item.id} package={item} showContextMenu={showContextMenu} />
+        } else {
+          return <Snippet key={item.id} package={pkg} snippet={item} showContextMenu={showContextMenu} />
+        }
+      })}
+    </div>
+  )
+}
+
+export function Snippet({ package: pkg, snippet, showContextMenu }: SnippetProps) {
+  const { deleteSnippet, renameSnippet, downloadSnippet } = useSnippetAdapter(snippet)
+
+  const renameThisSnippet = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    event.preventDefault()
+    const newName = prompt(`Enter New Name for snippet: ${snippet.name}`, snippet.name)
+    if (newName) renameSnippet(newName)
+    return true
+  }
+
+  const snippetContextOptions: ContextMenuOptions = [
+    { icon: RenameIcon, text: 'Rename Snippet', onClick: renameThisSnippet },
+    { icon: TrashIcon, text: 'Delete Snippet', onClick: deleteSnippet },
+    null,
+    { icon: DesktopDownloadIcon, text: 'Download Snippet', onClick: downloadSnippet },
+  ]
+
+  return (
+    <NavLinkPersist
+      to={`/editor/${pkg.parentId}/${pkg.id}/${snippet.id}`}
+      className={styles.item}
+      onContextMenu={(event) => showContextMenu(event, snippetContextOptions)}>
+      <SnippetIcon />
+      {snippet.name}
+    </NavLinkPersist>
+  )
+}
+
+export function PackageItem({ package: pkg, showContextMenu }: PackageItemProps) {
+  const { deletePackage, renamePackage } = usePackageAdapter(pkg)
+  const navigate = useNavigate()
+
+  const renameThisPackage = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    event.preventDefault()
+    const newName = prompt(`Enter New Name for package: ${pkg.name}`, pkg.name)
+    if (newName) renamePackage(newName)
+    return true
+  }
+
+  const openPackageInEditor = async () => {
+    navigate(`/editor/${pkg.parentId}/${pkg.id}`)
+  }
+
+  const packageContextOptions: ContextMenuOptions = [
+    { icon: RenameIcon, text: 'Rename Package', onClick: renameThisPackage },
+    { icon: TrashIcon, text: 'Delete Package', onClick: deletePackage },
+    null,
+    { icon: LinkExternalIcon, text: 'Open Package in Editor', onClick: openPackageInEditor },
+  ]
+
+  return (
+    <NavLinkPersist
+      to={`/explorer/${pkg.parentId}/${pkg.id}`}
+      className={styles.item}
+      onContextMenu={(event) => showContextMenu(event, packageContextOptions)}>
+      {pkg.id === 'root' ? <VMIcon /> : <PackageIcon />}
+      {pkg.name}
+    </NavLinkPersist>
+  )
+}

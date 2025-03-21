@@ -1,0 +1,136 @@
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px;
+  color: #D6DEEB;
+  background-color: #021627;
+  height: 100%;
+  max-height: 100%;
+
+  hr {
+    margin: 0;
+    padding: 0;
+    flex-grow: 0;
+    height: 1px;
+    border: none;
+    background-color: #1F406A;
+  }
+
+  .items {
+    display: grid;
+    text-align: center;
+    align-self: stretch;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    padding: 8px 0;
+  }
+
+  .item {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    color: #D6DEEB;
+    text-decoration: none;
+    background-color: #031C33;
+    border: 1px solid #1F406A;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #82AAFF;
+      background-color: #0A2540;
+      border-color: #82AAFF;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    &:active {
+      transform: translateY(0);
+      background-color: #1F406A;
+    }
+
+    svg {
+      width: 48px;
+      height: 48px;
+      color: #89DDFF;
+      transition: color 0.2s ease;
+    }
+
+    &:hover svg {
+      color: #82AAFF;
+    }
+  }
+
+  .breadcrumbs {
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    padding: 8px 0;
+
+    &::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #031C33;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #1F406A;
+      border-radius: 2px;
+    }
+
+    svg {
+      color: #637777;
+      margin: 0 8px;
+    }
+
+    .breadcrumb {
+      user-select: none;
+      padding: 8px 16px;
+      white-space: nowrap;
+      color: #D6DEEB;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+
+      &:last-child {
+        pointer-events: none;
+        color: #82AAFF;
+        font-weight: 500;
+      }
+
+      &:hover {
+        color: #89DDFF;
+        background-color: #0A2540;
+      }
+
+      &:active {
+        background-color: #1F406A;
+      }
+    }
+  }
+}
+
+.emptyFolderShowCase {
+  align-self: center;
+  justify-self: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  user-select: none;
+  color: #637777;
+  font-size: 1.1em;
+  padding: 32px;
+  background-color: #031C33;
+  border-radius: 8px;
+  border: 1px dashed #1F406A;
+}
