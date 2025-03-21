@@ -2,6 +2,8 @@
   display: flex;
   max-height: 100vh;
   height: 100vh;
+  background-color: var(--adm-color-background);
+  color: var(--adm-color-text);
 
   @media (max-width: 600px) {
     flex-direction: column;
@@ -14,6 +16,8 @@
     box-sizing: border-box;
     flex: 1 1 100%;
     overflow: overlay;
+    background-color: var(--adm-color-background);
+    min-height: 100vh;
 
     @media (max-width: 600px) {
       padding-bottom: 49px;
@@ -26,5 +30,12 @@
     right: 0;
     bottom: 0;
     z-index: 1000;
+    background-color: var(--adm-color-secondary);
+    border-top: 1px solid var(--adm-color-border);
+  }
+
+  .sideNav {
+    background-color: var(--adm-color-secondary);
+    border-right: 1px solid var(--adm-color-border);
   }
 }
