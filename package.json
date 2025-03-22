@@ -2,7 +2,7 @@
   "name": "codesync",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://zakariafarih.github.io/codesync",
+  "homepage": "./",
   "dependencies": {
     "@ant-design/icons": "^5.0.1",
     "@excalidraw/excalidraw": "^0.14.2",

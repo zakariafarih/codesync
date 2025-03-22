@@ -15,7 +15,7 @@ const root = createRoot(container)
 root.render(
   <React.StrictMode>
     <Provider store={store}>
-      <BrowserRouter basename='/codesync'>
+      <BrowserRouter>
         <PersistSelectedStates>
           <ConfigProvider
             theme={{
