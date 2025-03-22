@@ -59,6 +59,10 @@ const breadcrumbContextOptions: ContextMenuOptions = [
 ]
 
 const packageContextOptions: ContextMenuOptions = [
+  { icon: NewSnippetIcon, text: 'New Snippet' },
+  { icon: NewDrawingIcon, text: 'New Drawing' },
+  { icon: NewPackageIcon, text: 'New Package' },
+  null,
   { icon: RenameIcon, text: 'Rename Package' },
   { icon: TrashIcon, text: 'Delete Package' },
   null,

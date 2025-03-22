@@ -89,7 +89,6 @@ export const deleteSnippet = async (
   database: PackageDatabase,
   state: PackageState,
 ) => {
-
   state.setSnippetStatus(snippet, SnippetStatus.Deleting)
   await database.deleteSnippetContent(snippet)
   await database.deleteSnippetMetadata(snippet)
@@ -97,6 +96,7 @@ export const deleteSnippet = async (
   state.deleteSnippetMetadata(snippet)
   state.setSnippetStatus(snippet, SnippetStatus.Deleted)
 }
+
 
 export const saveSnippet = async (
   snippet: Package.SnippetType,

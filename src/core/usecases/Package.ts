@@ -1,6 +1,7 @@
 import { Package } from '../entities/Package'
 import { PackageDatabase } from '../repositories/PackageDatabase'
 import { PackageState, PackageStatus } from '../repositories/PackageState'
+import { deleteDrawing } from './Drawing'
 import { deleteSnippet } from './Snippet'
 
 export type createPackageParams = {
@@ -60,16 +61,20 @@ export const deletePackage = async (
   database: PackageDatabase,
   state: PackageState
 ) => {
-
   state.setPackageStatus(pkg, PackageStatus.Deleting)
   const nodes: Package.PackageContent = await fetchPackageContent(pkg, database, state)
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     if (node.type === Package.NodeType.package) {
+      // Recursively delete sub-packages.
       await deletePackage(node as Package.PackageMetadata, database, state)
-    } else {
+    } else if (node.type === Package.NodeType.snippet) {
+      // Delete snippet nodes.
       await deleteSnippet(node as Package.SnippetMetadata, database, state)
+    } else if (node.type === Package.NodeType.drawing) {
+      // Delete drawing nodes.
+      await deleteDrawing(node as Package.DrawingMetadata, database, state)
     }
   }
 
