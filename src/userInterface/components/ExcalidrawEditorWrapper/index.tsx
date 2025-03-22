@@ -1,7 +1,13 @@
-import React, { useEffect, useRef, useCallback, useState, memo } from 'react'
+import React, {
+  useEffect,
+  useRef,
+  useCallback,
+  useState,
+  memo
+} from 'react'
 import { Excalidraw, serializeAsJSON, restore } from '@excalidraw/excalidraw'
-import { 
-  ExcalidrawImperativeAPI, 
+import {
+  ExcalidrawImperativeAPI,
   AppState,
   BinaryFiles,
   NormalizedZoomValue,
@@ -17,7 +23,7 @@ interface ExcalidrawEditorWrapperProps {
   drawingMetadata: Package.DrawingMetadata
 }
 
-// Memoize the forwardRef component to avoid unnecessary re-renders.
+// Memoized forwardRef wrapper
 const ExcalidrawWithRef = memo(
   React.forwardRef<ExcalidrawImperativeAPI, React.ComponentProps<typeof Excalidraw>>(
     (props, ref) => <Excalidraw ref={ref} {...props} />
@@ -25,6 +31,7 @@ const ExcalidrawWithRef = memo(
 )
 ExcalidrawWithRef.displayName = 'ExcalidrawWithRef'
 
+// Default app state (make sure to provide all required properties)
 const defaultAppState: AppState = {
   activeTool: {
     type: 'selection',
@@ -110,40 +117,106 @@ export const ExcalidrawEditorWrapper = memo(({ drawingMetadata }: ExcalidrawEdit
   const [hasLoaded, setHasLoaded] = useState(false)
   const [elements, setElements] = useState<NonDeletedExcalidrawElement[]>([])
   const [appState, setAppState] = useState<AppState>(defaultAppState)
+  const [sceneData, setSceneData] = useState<string>('')
+  const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  
+  const AUTO_SAVE_INTERVAL = 2 * 60 * 1000 // 2 minutes
 
+  // Use a ref to hold the latest sceneData for auto-save
+  const sceneDataRef = useRef(sceneData)
   useEffect(() => {
-    if (!hasLoaded) {
-      loadDrawing()
-        .then(() => setHasLoaded(true))
-        .catch((err) => console.error('Error loading drawing:', err))
-    }
-  }, [loadDrawing, hasLoaded])
+    sceneDataRef.current = sceneData
+  }, [sceneData])
 
+  // Load drawing from DB only once
   useEffect(() => {
-    if (hasLoaded && drawingContent?.sceneData) {
+    const loadInitialContent = async () => {
       try {
-        const sceneJson = JSON.parse(drawingContent.sceneData)
-        const restored = restore(sceneJson, null, null) as RestoredDataState
-        if (restored) {
-          setElements(restored.elements ?? [])
-          if (restored.appState) {
-            setAppState((prevState) => ({
-              ...prevState,
-              ...restored.appState,
-              width: window.innerWidth,
-              height: window.innerHeight,
-            }))
+        if (!hasLoaded) {
+          const result = await loadDrawing()
+          setHasLoaded(true)
+          
+          if (result?.sceneData) {
+            setSceneData(result.sceneData)
+            try {
+              const sceneJson = JSON.parse(result.sceneData)
+              const restored = restore(sceneJson, null, null) as RestoredDataState
+              
+              if (restored) {
+                setElements(restored.elements ?? [])
+                setAppState(prevState => ({
+                  ...prevState,
+                  ...restored.appState,
+                  width: window.innerWidth,
+                  height: window.innerHeight,
+                }))
+              }
+            } catch (err) {
+              console.error('[Excalidraw] Failed to restore sceneData:', err)
+            }
           }
         }
       } catch (err) {
-        console.error('[Excalidraw] Failed to load sceneData:', err)
+        console.error('Error loading drawing:', err)
+        setHasLoaded(true) // Still set loaded to true to prevent infinite loading
       }
     }
-  }, [drawingContent, hasLoaded])
 
-  const onChange = useCallback((elements: readonly NonDeletedExcalidrawElement[], state: AppState, files: BinaryFiles) => {
-    const data = serializeAsJSON(elements, state, files, 'local')
-    saveDrawing(data)
+    loadInitialContent()
+  }, [loadDrawing, hasLoaded])
+
+  // onChange: update local state and trigger save
+  const onChange = useCallback((
+    elements: readonly NonDeletedExcalidrawElement[], 
+    state: AppState, 
+    files: BinaryFiles
+  ) => {
+    try {
+      const data = serializeAsJSON(elements, state, files, 'local')
+      setElements([...elements])
+      setAppState(prevState => ({
+        ...prevState,
+        ...state,
+      }))
+      setSceneData(data)
+      setSaveError(null)
+    } catch (err) {
+      console.error('Error in onChange handler:', err)
+      setSaveError('Failed to update drawing state')
+    }
+  }, [])
+
+  // Manual Save Now button with proper error handling
+  const handleSaveNow = useCallback(async () => {
+    if (!sceneDataRef.current) return
+
+    try {
+      await saveDrawing(sceneDataRef.current)
+      setLastSavedTime(new Date())
+      setSaveError(null)
+    } catch (err) {
+      console.error('Failed to save drawing:', err)
+      setSaveError('Failed to save drawing')
+    }
+  }, [saveDrawing])
+
+  // Auto-save with error handling
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      if (sceneDataRef.current) {
+        try {
+          await saveDrawing(sceneDataRef.current)
+          setLastSavedTime(new Date())
+          setSaveError(null)
+        } catch (err) {
+          console.error('Auto-save failed:', err)
+          setSaveError('Auto-save failed')
+        }
+      }
+    }, AUTO_SAVE_INTERVAL)
+    
+    return () => clearInterval(intervalId)
   }, [saveDrawing])
 
   const handleDownload = useCallback(() => {
@@ -158,6 +231,16 @@ export const ExcalidrawEditorWrapper = memo(({ drawingMetadata }: ExcalidrawEdit
     <div className={style.container}>
       <div className={style.header}>
         <button onClick={handleDownload}>Download Drawing</button>
+        <button onClick={handleSaveNow}>Save Now</button>
+        <div>
+          {saveError ? (
+            <span style={{ color: 'red' }}>{saveError}</span>
+          ) : (
+            <span>
+              Last saved: {lastSavedTime ? lastSavedTime.toLocaleTimeString() : 'Not saved yet'}
+            </span>
+          )}
+        </div>
       </div>
       <ExcalidrawWithRef
         ref={excalidrawRef}

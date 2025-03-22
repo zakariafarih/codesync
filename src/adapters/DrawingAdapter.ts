@@ -1,4 +1,3 @@
-/* eslint-disable linebreak-style */
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocalPackageDatabase } from '../infrastructure/databases/LocalPackageDatabase'
 import { useReduxPackageState, selectDrawingMetadata, selectDrawingContent, selectDrawingStatus } from '../infrastructure/state/PackageState'
@@ -20,49 +19,92 @@ export function useDrawingAdapter(drawing: Pick<PackageEntity.DrawingMetadata, '
   const drawingStatus = useSelector(selectDrawingStatus(drawing))
 
   const loadDrawing = useMemo(
-    () => () => fetchDrawing(drawing, localDatabase, directoryState),
-    [drawing.id]
+    () => async () => {
+      try {
+        const result = await fetchDrawing(drawing, localDatabase, directoryState)
+        console.log('Drawing loaded:', result) // Debug log
+        return result
+      } catch (err) {
+        console.error('Failed to load drawing:', err)
+        throw err
+      }
+    },
+    [drawing.id, localDatabase, directoryState]
   )
 
   const saveDrawing = useMemo(
-    () => (sceneData: string) => {
-      if (!drawingMetadata) return
-      updateDrawing(
-        {
+    () => async (sceneData: string) => {
+      if (!drawingMetadata) {
+        console.error('Cannot save drawing: metadata not found')
+        return
+      }
+      
+      try {
+        const updatedDrawing = {
           ...drawingMetadata,
           sceneData,
-        },
-        localDatabase,
-        directoryState
-      )
+          editedAt: Date.now(),
+          content: sceneData, // Make sure content is also updated
+        }
+        
+        await updateDrawing(
+          updatedDrawing,
+          localDatabase,
+          directoryState
+        )
+        console.log('Drawing saved:', {
+          id: drawing.id,
+          contentLength: sceneData.length,
+          timestamp: new Date().toISOString()
+        })
+      } catch (err) {
+        console.error('Failed to save drawing:', err)
+        throw err
+      }
     },
-    [drawingMetadata]
+    [drawingMetadata, localDatabase, directoryState, drawing.id]
   )
 
   const removeDrawing = useMemo(
-    () => () => {
-      deleteDrawing(drawing, localDatabase, directoryState)
+    () => async () => {
+      try {
+        await deleteDrawing(drawing, localDatabase, directoryState)
+      } catch (err) {
+        console.error('Failed to delete drawing:', err)
+        throw err
+      }
     },
-    [drawing.id]
+    [drawing.id, localDatabase, directoryState]
   )
 
-  // Download as .excalidraw JSON
-  const downloadDrawing = useMemo(() => async () => {
-    if (!drawingMetadata || !drawingContent) return
-    const snippetLike = {
-      name: drawingMetadata.name + '.excalidraw',
-      content: drawingContent.sceneData,
-    }
-    downloader.downloadTextFile({
-      id: drawingMetadata.id,
-      name: snippetLike.name,
-      content: snippetLike.content,
-      type: PackageEntity.NodeType.snippet,
-      parentId: drawingMetadata.parentId,
-      editedAt: 0,
-      createdAt: 0,
-    })
-  }, [drawingMetadata, drawingContent])
+  const downloadDrawing = useMemo(
+    () => async () => {
+      if (!drawingMetadata || !drawingContent) {
+        console.error('Cannot download drawing: metadata or content not found')
+        return
+      }
+
+      try {
+        const snippetLike = {
+          name: drawingMetadata.name + '.excalidraw',
+          content: drawingContent.sceneData,
+        }
+        await downloader.downloadTextFile({
+          id: drawingMetadata.id,
+          name: snippetLike.name,
+          content: snippetLike.content,
+          type: PackageEntity.NodeType.snippet,
+          parentId: drawingMetadata.parentId,
+          editedAt: drawingMetadata.editedAt,
+          createdAt: drawingMetadata.createdAt,
+        })
+      } catch (err) {
+        console.error('Failed to download drawing:', err)
+        throw err
+      }
+    },
+    [drawingMetadata, drawingContent, downloader]
+  )
 
   return {
     drawingMetadata,

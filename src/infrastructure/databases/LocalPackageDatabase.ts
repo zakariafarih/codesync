@@ -37,16 +37,16 @@ export class LocalPackageDatabase implements PackageDatabase {
     if (this.database == null) {
       this.database = await openDB<LocalPackageDatabaseSchema>(this.databaseName, 1, {
         upgrade(db) {
+          // Make sure autoIncrement is not enabled:
           const metadataStore = db.createObjectStore(metadataStoreName, {
-            keyPath: 'id',
-            autoIncrement: true,
+            keyPath: 'id' // autoIncrement is not set!
           })
           metadataStore.createIndex('parentId', 'parentId')
-
+          
           db.createObjectStore(contentStoreName, {
             keyPath: 'id'
           })
-        }
+        }          
       })
     }
     return this
