@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { Package } from '../../core/entities/Package'
 import { PackageState, SnippetStatus, PackageStatus, DrawingStatus } from '../../core/repositories/PackageState'
 import { AppDispatch, RootState } from './app/store'
+import { createSelector } from 'reselect'
 
 interface ExplorerState {
   snippetMetadata: Record<Package.NodeId, Package.SnippetMetadata>
@@ -25,7 +26,6 @@ const initialState: ExplorerState = {
   packageStatus: {
     [Package.Workspace.id]: PackageStatus.Default
   },
-
   drawingMetadata: {},
   drawingContent: {},
   drawingStatus: {},
@@ -77,10 +77,7 @@ const reduxPackageState = createSlice({
     setDrawingContent(state, { payload }: PayloadAction<Package.DrawingContent>) {
       state.drawingContent[payload.id] = payload
     },
-    setDrawingStatus(
-      state,
-      { payload }: PayloadAction<{ drawing: Pick<Package.Node, 'id'>; status: DrawingStatus }>
-    ) {
+    setDrawingStatus(state, { payload }: PayloadAction<{ drawing: Pick<Package.Node, 'id'>; status: DrawingStatus }>) {
       if (payload.status === DrawingStatus.Deleted) {
         delete state.drawingStatus[payload.drawing.id]
       } else {
@@ -96,8 +93,110 @@ const reduxPackageState = createSlice({
   },
 })
 
-class ReduxPackageStateManager implements PackageState {
+// Updated selectors with memoization using reselect
+export const selectDrawingMetadata = (drawing: Pick<Package.DrawingMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.drawingMetadata],
+    (drawingMetadata) => drawingMetadata[drawing.id]
+  )
 
+export const selectDrawingContent = (drawing: Pick<Package.DrawingMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.drawingContent],
+    (drawingContent) => drawingContent[drawing.id]
+  )
+
+export const selectDrawingStatus = (drawing: Pick<Package.DrawingMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.drawingStatus],
+    (drawingStatus) => drawingStatus[drawing.id]
+  )
+
+export const selectPackageContent = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) =>
+  createSelector(
+    [
+      (state: RootState) => state.packageState.packageMetadata,
+      (state: RootState) => state.packageState.snippetMetadata,
+      (state: RootState) => state.packageState.drawingMetadata,
+    ],
+    (pkgMeta, snippetMeta, drawingMeta) => {
+      const contentMap = new Map<string, Package.PackageContent[number]>()
+  
+      // Add package nodes
+      Object.values(pkgMeta).forEach((node) => {
+        if (node && node.parentId === packageMetadata.id) {
+          contentMap.set(node.id, node)
+        }
+      })
+  
+      // Add snippet nodes
+      Object.values(snippetMeta).forEach((node) => {
+        if (node && node.parentId === packageMetadata.id) {
+          contentMap.set(node.id, node)
+        }
+      })
+  
+      // Add drawing nodes
+      Object.values(drawingMeta).forEach((node) => {
+        if (node && node.parentId === packageMetadata.id) {
+          contentMap.set(node.id, node)
+        }
+      })
+  
+      return Array.from(contentMap.values())
+    }
+  )
+  
+
+export const selectPackageMetadata = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.packageMetadata],
+    (packageMetadataMap) => packageMetadataMap[packageMetadata.id]
+  )
+
+export const selectSnippetMetadata = (snippetMetadata: Pick<Package.SnippetMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.snippetMetadata],
+    (snippetMetadataMap) => snippetMetadataMap[snippetMetadata.id]
+  )
+
+export const selectSnippetContent = (snippetMetadata: Pick<Package.SnippetMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.snippetContent],
+    (snippetContentMap) => snippetContentMap[snippetMetadata.id]
+  )
+
+export const selectPackageStatus = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.packageStatus],
+    (packageStatusMap) => packageStatusMap[packageMetadata.id]
+  )
+
+export const selectAncestors = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.packageMetadata],
+    (packageMetadataMap) => {
+      let currentNode: Package.PackageMetadata | undefined = packageMetadataMap[packageMetadata.id]
+      const ancestors: Package.PackageMetadata[] = []
+      while (currentNode && currentNode.id !== Package.Workspace.id) {
+        ancestors.push(currentNode)
+        currentNode = packageMetadataMap[currentNode.parentId]
+      }
+      ancestors.push(Package.Workspace)
+      return ancestors.reverse()
+    }
+  )
+
+export const selectSnippetStatus = (snippetMetadata: Pick<Package.SnippetMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.snippetStatus],
+    (snippetStatusMap) => snippetStatusMap[snippetMetadata.id]
+  )
+
+export default reduxPackageState.reducer
+
+// ReduxPackageStateManager implementation remains unchanged
+class ReduxPackageStateManager implements PackageState {
   private readonly dispatch: AppDispatch
 
   constructor(dispatch: AppDispatch) {
@@ -147,101 +246,10 @@ class ReduxPackageStateManager implements PackageState {
   }
 }
 
-export const selectDrawingMetadata = (drawing: Pick<Package.DrawingMetadata, 'id'>) => {
-  return (state: RootState) => {
-    return state.packageState.drawingMetadata[drawing.id]
-  }
-}
-
-export const selectDrawingContent = (drawing: Pick<Package.DrawingMetadata, 'id'>) => {
-  return (state: RootState) => {
-    return state.packageState.drawingContent[drawing.id]
-  }
-}
-
-export const selectDrawingStatus = (drawing: Pick<Package.DrawingMetadata, 'id'>) => {
-  return (state: RootState) => {
-    return state.packageState.drawingStatus[drawing.id]
-  }
-}
-
-export default reduxPackageState.reducer
-
 let reduxPackageStateManagerInstance: ReduxPackageStateManager
 export const useReduxPackageState = (dispatch: AppDispatch) => {
   if (reduxPackageStateManagerInstance === undefined) {
     reduxPackageStateManagerInstance = new ReduxPackageStateManager(dispatch)
   }
   return reduxPackageStateManagerInstance
-}
-
-export const selectPackageContent = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) => {
-  return (state: RootState) => {
-    const content: (Package.PackageMetadata | Package.SnippetMetadata | Package.DrawingMetadata)[] = []
-
-    for (const nodeId in state.packageState.packageMetadata) {
-      const node = state.packageState.packageMetadata[nodeId]
-      if (node && node.parentId === packageMetadata.id) {
-        content.push(node)
-      }
-    }
-    for (const nodeId in state.packageState.snippetMetadata) {
-      const node = state.packageState.snippetMetadata[nodeId]
-      if (node && node.parentId === packageMetadata.id) {
-        content.push(node)
-      }
-    }
-
-    for (const nodeId in state.packageState.drawingMetadata) {
-      const node = state.packageState.drawingMetadata[nodeId]
-      if (node && node.parentId === packageMetadata.id) {
-        content.push(node)
-      }
-    }
-
-    return content
-  }
-}
-
-export const selectPackageMetadata = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) => {
-  return (state: RootState): Package.PackageMetadata | undefined => {
-    return state.packageState.packageMetadata[packageMetadata.id]
-  }
-}
-
-export const selectSnippetMetadata = (snippetMetadata: Pick<Package.SnippetMetadata, 'id'>) => {
-  return (state: RootState) => {
-    return state.packageState.snippetMetadata[snippetMetadata.id]
-  }
-}
-
-export const selectSnippetContent = (snippetMetadata: Pick<Package.SnippetMetadata, 'id'>) => {
-  return (state: RootState): Package.SnippetContent | undefined => {
-    return state.packageState.snippetContent[snippetMetadata.id]
-  }
-}
-
-export const selectPackageStatus = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) => {
-  return (state: RootState) => {
-    return state.packageState.packageStatus[packageMetadata.id]
-  }
-}
-
-export const selectAncestors = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) => {
-  return (state: RootState) => {
-    let currentNode: Package.PackageMetadata | undefined = state.packageState.packageMetadata[packageMetadata.id]
-    const ancestors: Package.PackageMetadata[] = []
-    while (currentNode && currentNode.id !== Package.Workspace.id) {
-      ancestors.push(currentNode)
-      currentNode = state.packageState.packageMetadata[currentNode.parentId]
-    }
-    ancestors.push(Package.Workspace)
-    return ancestors.reverse()
-  }
-}
-
-export const selectSnippetStatus = (snippetMetadata: Pick<Package.SnippetMetadata, 'id'>) => {
-  return (state: RootState) => {
-    return state.packageState.snippetStatus[snippetMetadata.id]
-  }
 }

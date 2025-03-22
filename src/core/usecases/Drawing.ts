@@ -3,6 +3,7 @@ import { Package } from '../entities/Package'
 import { PackageDatabase } from '../repositories/PackageDatabase'
 import { PackageState } from '../repositories/PackageState'
 import { DrawingStatus } from '../repositories/PackageState'
+import { v4 as uuidv4 } from 'uuid'
 
 export type createDrawingParams = {
   name: string
@@ -14,7 +15,7 @@ export async function createDrawing(
   database: PackageDatabase,
   state: PackageState
 ): Promise<Package.DrawingMetadata & Package.DrawingContent> {
-  const drawingId = String(Date.now())
+  const drawingId = params.parentId ? `${params.parentId}-${uuidv4()}` : uuidv4()
 
   const drawingMetadata: Package.DrawingMetadata = {
     type: Package.NodeType.drawing,

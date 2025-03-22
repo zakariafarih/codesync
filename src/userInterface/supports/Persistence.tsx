@@ -2,26 +2,35 @@ import React, { useEffect } from 'react'
 import { Navigate, NavigateOptions, NavigateProps, NavLink, NavLinkProps, To, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAppSelector } from '../../infrastructure/state/app/hooks'
 import { RootState } from '../../infrastructure/state/app/store'
+import { debounce } from 'lodash'
 
 interface Props {
   children: React.ReactNode
 }
 
 export function PersistSelectedStates({ children }: Props) {
-  const state = useAppSelector((state: RootState) => state)
+  // Only select the slices you need.
+  const counter = useAppSelector((state: RootState) => state.counter)
+  // For example, if you need more slices, add them here:
+  // const packageState = useAppSelector((state: RootState) => state.packageState)
+  // const sideExplorer = useAppSelector((state: RootState) => state.sideExplorer)
+
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const count = String(state.counter.value)
-
   useEffect(() => {
+    // Debounce the update to avoid excessive state writes.
+    const debouncedUpdate = debounce(() => {
+      const newSearchParams = new URLSearchParams(searchParams)
+      newSearchParams.set('count', String(counter.value))
+      // Add additional parameters if needed.
+      setSearchParams(newSearchParams)
+    }, 500)
+    debouncedUpdate()
 
-    // searchParams.set('count', count)
-    // Add more params here
+    return () => debouncedUpdate.cancel()
+  }, [counter.value, searchParams, setSearchParams])
 
-    setSearchParams(searchParams)
-  }, [count])
-
-  return (<> { children } </>)
+  return <>{children}</>
 }
 
 export function NavLinkPersist(props: NavLinkProps ) {
