@@ -19,7 +19,7 @@ jobs:
       - name: Build Project
         run: |
           npm i
-          npm run build
+          CI=false npm run build
           cp build/index.html build/404.html
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v3
