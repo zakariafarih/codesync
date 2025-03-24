@@ -66,18 +66,14 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
   const { createSnippet, createPackage, createDrawing } = usePackageAdapter(workspace)
   const [isSnippetModalOpen, setIsSnippetModalOpen] = useState(false)
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
+  const [isDrawingModalOpen, setDrawingModalOpen] = useState(false)
 
-  // For drawings, we prompt the user for a name and then call createDrawing.
-  const createNewDrawing = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
-    const name = prompt('Enter name for new Drawing:', 'Untitled Drawing')
-    if (name) {
-      createDrawing({ name }).catch(err =>
-        console.error('Failed to create drawing:', err)
-      )
-    }
+  const handleDrawingModalOk = (name: string) => {
+    createDrawing({ name })
+    setDrawingModalOpen(false)
   }
+
+  const createNewDrawing = async () => setDrawingModalOpen(true)
 
   const createNewSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.stopPropagation()
@@ -111,13 +107,11 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
             onClick={createNewSnippet}
           />
           {/* Create new drawing */}
-          <span
+          <EditOutlined
             className={style.iconButton}
-            title="Create new drawing in this package"
+            title={`Create new drawing in ${workspace.name}`}
             onClick={createNewDrawing}
-          >
-            <EditOutlined />
-          </span>
+          />
         </div>
       </div>
 
@@ -145,6 +139,15 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
         }}
         onCancel={() => setIsPackageModalOpen(false)}
         placeholder="Enter package name"
+      />
+
+      {/* Drawing creation modal */}
+      <CreateModal
+        title="Create New Drawing"
+        isOpen={isDrawingModalOpen}
+        onOk={handleDrawingModalOk}
+        onCancel={() => setDrawingModalOpen(false)}
+        placeholder="Enter drawing name"
       />
     </>
   )

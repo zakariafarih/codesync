@@ -97,6 +97,7 @@ export function Explorer({ workspace }: ExplorerProps) {
   useEffect(fetchPackageContent, [workspace.id])
 
   const [contextMenu, setContextMenu] = useState<ReactNode>()
+  const [isDrawingModalOpen, setDrawingModalOpen] = useState(false)
   const containerRef = useRef(null)
   const itemsRef = useRef(null)
 
@@ -112,14 +113,14 @@ export function Explorer({ workspace }: ExplorerProps) {
     setPackageModalOpen(false)
   }
 
+  const handleDrawingModalOk = (name: string) => {
+    createDrawing({ name })
+    setDrawingModalOpen(false)
+  }
+
   const createNewSnippet = async () => setSnippetModalOpen(true)
   const createNewPackage = async () => setPackageModalOpen(true)
-  const createNewDrawing = async () => {
-    const name = prompt('Enter name for new Drawing', 'Untitled Board')
-    if (name) {
-      await createDrawing({ name })
-    }
-  }
+  const createNewDrawing = async () => setDrawingModalOpen(true)
 
   const itemsExplorerContextOptions: ContextMenuOptions = [
     { icon: NewSnippetIcon, text: 'New Snippet', onClick: createNewSnippet },
@@ -184,6 +185,13 @@ export function Explorer({ workspace }: ExplorerProps) {
         onOk={handlePackageModalOk}
         onCancel={() => setPackageModalOpen(false)}
         placeholder="Enter package name"
+      />
+      <CreateModal
+        title="Create New Drawing"
+        isOpen={isDrawingModalOpen}
+        onOk={handleDrawingModalOk}
+        onCancel={() => setDrawingModalOpen(false)}
+        placeholder="Enter drawing name"
       />
     </>
   )
