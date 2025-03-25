@@ -144,3 +144,27 @@ export const savePackageMetadata = async (
   state.setPackageMetadata(pkg)
   state.setPackageStatus(pkg, PackageStatus.Default)
 }
+
+export const movePackage = async (
+  packageId: string,
+  newParentId: string,
+  database: PackageDatabase,
+  state: PackageState
+): Promise<void> => {
+  // Fetch current package metadata
+  const packageMetadata = await database.fetchPackageMetadata({ id: packageId })
+  
+  // Update parentId and editedAt timestamp
+  const updatedMetadata: Package.PackageMetadata = {
+    ...packageMetadata,
+    parentId: newParentId,
+    editedAt: Date.now(),
+  }
+
+  // Persist the updated metadata to the database
+  await database.updatePackageMetadata(updatedMetadata)
+
+  // Update the Redux state with the new metadata
+  state.setPackageMetadata(updatedMetadata)
+}
+

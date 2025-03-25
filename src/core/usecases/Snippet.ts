@@ -136,3 +136,27 @@ export const downloadSnippet = async (
   const snippet = await fetchSnippet(snippetMetadataPartial, database, state)
   await downloader.downloadTextFile(snippet)
 }
+
+export const moveSnippet = async (
+  snippetId: string,
+  newParentId: string,
+  database: PackageDatabase,
+  state: PackageState,
+): Promise<void> => {
+  // Fetch the current snippet metadata
+  const snippetMetadata = await database.fetchSnippetMetadata({ id: snippetId })
+  
+  // Update the parentId and editedAt fields
+  const updatedMetadata: Package.SnippetMetadata = {
+    ...snippetMetadata,
+    parentId: newParentId,
+    editedAt: Date.now(),
+  }
+
+  // Persist the updated metadata in the database
+  await database.updateSnippetMetadata(updatedMetadata)
+
+  // Update the state with the new metadata
+  state.setSnippetMetadata(updatedMetadata)
+}
+

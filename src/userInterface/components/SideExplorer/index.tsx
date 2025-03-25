@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   RightOutlined,
   FileOutlined,
@@ -23,44 +23,43 @@ import { usePackageAdapter, useSnippetAdapter } from '../../../adapters/PackageA
 // UI Components
 import { CreateModal } from '../Modal'
 import { DeleteModal } from '../DeleteModal'
-import { NavLinkPersist } from '../../supports/Persistence'
 import { useNavigate } from 'react-router-dom'
 import { useDrawingAdapter } from '../../../adapters/DrawingAdapter'
 
-/** The props for the top-level side explorer. */
+// Drag & Drop move functions and supporting hooks
+import { moveSnippet } from '../../../core/usecases/Snippet'
+import { movePackage } from '../../../core/usecases/Package'
+import { moveDrawing } from '../../../core/usecases/Drawing'
+import { useLocalPackageDatabase } from '../../../infrastructure/databases/LocalPackageDatabase'
+import { useReduxPackageState } from '../../../infrastructure/state/PackageState'
+
 export interface SideExplorerProps {
   workspace: Package.PackageMetadata;
   openSnippet: (node: Package.SnippetMetadata | Package.DrawingMetadata) => void;
 }
 
-/** The props for Explorer items rendering. */
 interface ExplorerItemsProps {
   packageName: Package.PackageMetadata;
   openSnippet: (node: Package.SnippetMetadata | Package.DrawingMetadata) => void;
 }
 
-/** The props for the snippet component. */
 interface SnippetProps {
   snippet: Package.SnippetMetadata;
   openSnippet: (node: Package.SnippetMetadata) => void;
 }
 
-/** The props for the package item. */
-interface PackageProps {
-  packageName: Package.PackageMetadata;
-  openSnippet: (node: Package.SnippetMetadata | Package.DrawingMetadata) => void;
-}
-
-/** The props for the drawing item. */
 interface DrawingProps {
   drawing: Package.DrawingMetadata;
   openSnippet: (node: Package.SnippetMetadata | Package.DrawingMetadata) => void;
 }
 
-/**
- * Main SideExplorer component:
- * - Renders the workspace name and provides “create new…” icon buttons.
- * - Calls FolderItems to list child items.
+interface PackageProps {
+  packageName: Package.PackageMetadata;
+  openSnippet: (node: Package.SnippetMetadata | Package.DrawingMetadata) => void;
+}
+
+/** 
+ * SideExplorer displays the workspace header and action buttons, then renders FolderItems.
  */
 export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
   const { createSnippet, createPackage, createDrawing } = usePackageAdapter(workspace)
@@ -72,18 +71,15 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
     createDrawing({ name })
     setDrawingModalOpen(false)
   }
-
-  const createNewDrawing = async () => setDrawingModalOpen(true)
-
-  const createNewSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  const createNewDrawing = () => setDrawingModalOpen(true)
+  const createNewSnippet = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsSnippetModalOpen(true)
   }
-
-  const createNewPackage = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  const createNewPackage = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsPackageModalOpen(true)
   }
 
@@ -94,19 +90,16 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
           <span>{workspace.name}</span>
         </div>
         <div className={style.right}>
-          {/* Create new package */}
           <FolderAddOutlined
             className={style.iconButton}
             title={`Create new package in ${workspace.name}`}
             onClick={createNewPackage}
           />
-          {/* Create new snippet */}
           <FileAddOutlined
             className={style.iconButton}
             title={`Create new snippet in ${workspace.name}`}
             onClick={createNewSnippet}
           />
-          {/* Create new drawing */}
           <EditOutlined
             className={style.iconButton}
             title={`Create new drawing in ${workspace.name}`}
@@ -117,7 +110,6 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
 
       <FolderItems packageName={workspace} openSnippet={openSnippet} />
 
-      {/* Snippet creation modal */}
       <CreateModal
         title="Create New Snippet"
         isOpen={isSnippetModalOpen}
@@ -129,7 +121,6 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
         placeholder="Enter snippet name"
       />
 
-      {/* Package creation modal */}
       <CreateModal
         title="Create New Package"
         isOpen={isPackageModalOpen}
@@ -141,7 +132,6 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
         placeholder="Enter package name"
       />
 
-      {/* Drawing creation modal */}
       <CreateModal
         title="Create New Drawing"
         isOpen={isDrawingModalOpen}
@@ -153,8 +143,8 @@ export function SideExplorer({ workspace, openSnippet }: SideExplorerProps) {
   )
 }
 
-/**
- * Renders a package’s contents: snippets, packages, and drawings.
+/** 
+ * FolderItems renders the contents of a package.
  */
 export function FolderItems({ packageName, openSnippet }: ExplorerItemsProps) {
   const { fetchPackageContent, packageContent, packageStatus } = usePackageAdapter(packageName)
@@ -175,29 +165,11 @@ export function FolderItems({ packageName, openSnippet }: ExplorerItemsProps) {
       {packageContent.map((item) => {
         switch (item.type) {
         case Package.NodeType.snippet:
-          return (
-            <Snippet
-              key={item.id}
-              snippet={item}
-              openSnippet={openSnippet}
-            />
-          )
+          return <Snippet key={item.id} snippet={item} openSnippet={openSnippet} />
         case Package.NodeType.package:
-          return (
-            <PackageItem
-              key={item.id}
-              packageName={item}
-              openSnippet={openSnippet}
-            />
-          )
+          return <PackageItem key={item.id} packageName={item} openSnippet={openSnippet} />
         case Package.NodeType.drawing:
-          return (
-            <DrawingItem
-              key={item.id}
-              drawing={item}
-              openSnippet={openSnippet}
-            />
-          )
+          return <DrawingItem key={item.id} drawing={item} openSnippet={openSnippet} />
         default:
           return <div key={(item as any).id}>Unknown node type</div>
         }
@@ -206,29 +178,39 @@ export function FolderItems({ packageName, openSnippet }: ExplorerItemsProps) {
   )
 }
 
-/** Renders a single snippet row. */
+/** 
+ * Snippet component – draggable snippet row.
+ */
 export function Snippet({ snippet, openSnippet }: SnippetProps) {
   const { deleteSnippet, downloadSnippet } = useSnippetAdapter(snippet)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const deleteThisSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  const deleteThisSnippet = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsDeleteModalOpen(true)
   }
 
-  const downloadThisSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  const downloadThisSnippet = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     downloadSnippet()
   }
 
   return (
-    <div className={style.file}>
-      <div
-        className={`${style.name} ${style.entry}`}
-        onClick={() => openSnippet(snippet)}
-      >
+    <div className={`${style.file} ${isDragging ? style.dragging : ''}`}
+      draggable
+      onDragStart={(e) => {
+        setIsDragging(true)
+        e.stopPropagation()
+        const data = { type: 'snippet', id: snippet.id }
+        e.dataTransfer.setData('application/json', JSON.stringify(data))
+      }}
+      onDragEnd={() => setIsDragging(false)}
+    >
+      <div className={`${style.name} ${style.entry}`}
+        onClick={() => openSnippet(snippet)}>
         <div className={style.left}>
           <span className={style.icon}>
             <FileOutlined />
@@ -248,7 +230,6 @@ export function Snippet({ snippet, openSnippet }: SnippetProps) {
           />
         </div>
       </div>
-
       <DeleteModal
         title="Delete Snippet"
         isOpen={isDeleteModalOpen}
@@ -263,31 +244,40 @@ export function Snippet({ snippet, openSnippet }: SnippetProps) {
   )
 }
 
-/** Renders a single drawing row. */
+/** 
+ * DrawingItem component – draggable drawing row.
+ */
 export function DrawingItem({ drawing, openSnippet }: DrawingProps) {
-  // Get drawing adapter functions (including removal)
   const { removeDrawing } = useDrawingAdapter(drawing)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleClick = () => {
-    // Open the drawing in the editor.
     openSnippet(drawing)
   }
 
-  // Delete function without any event parameter.
   const deleteThisDrawing = async () => {
     try {
       await removeDrawing()
       setIsDeleteModalOpen(false)
-      // Optionally refresh package content here.
     } catch (err) {
       console.error('Failed to delete drawing:', err)
     }
   }
 
   return (
-    <div className={style.file}>
-      <div className={`${style.name} ${style.entry}`} onClick={handleClick}>
+    <div className={`${style.file} ${isDragging ? style.dragging : ''}`}
+      draggable
+      onDragStart={(e) => {
+        setIsDragging(true)
+        e.stopPropagation()
+        const data = { type: 'drawing', id: drawing.id }
+        e.dataTransfer.setData('application/json', JSON.stringify(data))
+      }}
+      onDragEnd={() => setIsDragging(false)}
+    >
+      <div className={`${style.name} ${style.entry}`}
+        onClick={handleClick}>
         <div className={style.left}>
           <span className={style.icon}>
             <EditOutlined />
@@ -305,7 +295,7 @@ export function DrawingItem({ drawing, openSnippet }: DrawingProps) {
       <DeleteModal
         title="Delete Drawing"
         isOpen={isDeleteModalOpen}
-        onOk={deleteThisDrawing} // Pass our parameterless async function here.
+        onOk={deleteThisDrawing}
         onCancel={() => setIsDeleteModalOpen(false)}
         itemName={drawing.name}
       />
@@ -313,45 +303,117 @@ export function DrawingItem({ drawing, openSnippet }: DrawingProps) {
   )
 }
 
-/** Renders a single package row that can expand to show its children. */
+/** 
+ * PackageItem component – draggable package row with nested drop target.
+ */
 export function PackageItem({ packageName, openSnippet }: PackageProps) {
+  // Get expansion state and adapter data (including ansestors)
   const isExpanded = useAppSelector(selectFolderExpansionState(packageName))
   const dispatch = useAppDispatch()
-  // Get functions from package adapter, including createDrawing.
-  const { createPackage, createSnippet, createDrawing, deletePackage, renamePackage } =
-    usePackageAdapter(packageName)
   const navigate = useNavigate()
+  const { createPackage, createSnippet, createDrawing, deletePackage, renamePackage, ansestors } =
+    usePackageAdapter(packageName)
 
+  // Local modal states
   const [isSnippetModalOpen, setIsSnippetModalOpen] = useState(false)
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
-  // Handler to delete this package.
-  const deleteThisPackage = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  // Drag & drop states
+  const [isDragging, setIsDragging] = useState(false)
+  const [isDropTarget, setIsDropTarget] = useState(false)
+
+  const localDB = useLocalPackageDatabase('db1')
+  const directoryState = useReduxPackageState(dispatch)
+
+  // --- DRAG / DROP HANDLERS FOR THE PACKAGE ITEM ---
+
+  // Header drag handlers – package as drag source
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    setIsDragging(true)
+    e.stopPropagation()
+    const data = { type: 'package', id: packageName.id }
+    e.dataTransfer.setData('application/json', JSON.stringify(data))
+  }
+
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    setIsDragging(false)
+  }
+
+  // Drop target on the child container
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isDropTarget) {
+      setIsDropTarget(true)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDropTarget(false)
+  }
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDropTarget(false)
+    try {
+      const raw = e.dataTransfer.getData('application/json')
+      if (!raw) return
+      const data = JSON.parse(raw)
+      // If the dragged item is a package, prevent dropping it into its own descendant.
+      if (data.type === 'package') {
+        // Check if the dragged package is the same as this target or one of its ancestors.
+        if (data.id === packageName.id || (ansestors && ansestors.some(a => a.id === data.id))) {
+          console.warn('Cannot drop a package into its descendant.')
+          return
+        }
+      }
+      switch (data.type) {
+      case 'snippet':
+        await moveSnippet(data.id, packageName.id, localDB, directoryState)
+        break
+      case 'drawing':
+        await moveDrawing(data.id, packageName.id, localDB, directoryState)
+        break
+      case 'package':
+        await movePackage(data.id, packageName.id, localDB, directoryState)
+        break
+      }
+    } catch (err) {
+      console.error('Drop failed:', err)
+    }
+  }
+
+  // --- action handlers ---
+  const handleFolderClick = () => {
+    dispatch(toggleExpansion(packageName))
+  }
+
+  const deleteThisPackage = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsDeleteModalOpen(true)
   }
 
-  // Handler to open modal for new snippet.
-  const createNewSnippet = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  const createNewSnippet = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsSnippetModalOpen(true)
   }
 
-  // Handler to open modal for new package.
-  const createNewPackage = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
+  const createNewPackage = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
     setIsPackageModalOpen(true)
   }
 
-  // NEW: Handler to create a new drawing in this package.
-  const createNewDrawing = (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.stopPropagation()
-    event.preventDefault()
-    const name = prompt('Enter name for new Drawing in this package:', 'Untitled Drawing')
+  const createNewDrawing = (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const name = prompt('Enter name for new Drawing:', 'Untitled Drawing')
     if (name) {
       createDrawing({ name })
         .then(() => console.log('Drawing created successfully.'))
@@ -359,24 +421,28 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
     }
   }
 
-  const handleFolderClick = () => {
-    dispatch(toggleExpansion(packageName))
-  }
-
-  const renameThisPackage = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
-    event.preventDefault()
-    const newName = prompt(`Enter New Name for package: ${packageName.name}`, packageName.name)
-    if (newName) renamePackage(newName)
-    return true
-  }
-
   const openPackageInEditor = async () => {
     navigate(`/editor/${packageName.parentId}/${packageName.id}`)
   }
 
+  const renameThisPackage = async (e: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
+    e.preventDefault()
+    const newName = prompt(`Rename package: ${packageName.name}`, packageName.name)
+    if (newName) {
+      renamePackage(newName)
+    }
+  }
+
   return (
     <div className={style.folder}>
-      <div className={`${style.name} ${style.entry}`} onClick={handleFolderClick}>
+      {/* Package header – draggable */}
+      <div
+        className={`${style.name} ${style.entry} ${isDragging ? style.dragging : ''}`}
+        onClick={handleFolderClick}
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div className={style.left}>
           <span className={isExpanded ? `${style.icon} ${style.turn90}` : style.icon}>
             <RightOutlined />
@@ -384,45 +450,34 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
           <span>{packageName.name}</span>
         </div>
         <div className={style.right}>
-          {/* Icon buttons for actions inside the package */}
-          <span
-            className={style.iconButton}
-            title={`New Drawing in ${packageName.name}`}
-            onClick={createNewDrawing}
-          >
+          <span className={style.iconButton} title="New Drawing" onClick={createNewDrawing}>
             <EditOutlined />
           </span>
-          <span
-            className={style.iconButton}
-            title={`New Snippet in ${packageName.name}`}
-            onClick={createNewSnippet}
-          >
+          <span className={style.iconButton} title="New Snippet" onClick={createNewSnippet}>
             <FileAddOutlined />
           </span>
-          <span
-            className={style.iconButton}
-            title={`New Package in ${packageName.name}`}
-            onClick={createNewPackage}
-          >
+          <span className={style.iconButton} title="New Package" onClick={createNewPackage}>
             <FolderAddOutlined />
           </span>
-          <span
-            className={style.iconButton}
-            title={`Delete Package: ${packageName.name}`}
-            onClick={deleteThisPackage}
-          >
+          <span className={style.iconButton} title="Delete Package" onClick={deleteThisPackage}>
             <DeleteOutlined />
           </span>
         </div>
       </div>
-      <div className={style.child}>
+
+      {/* Child container – drop target */}
+      <div
+        className={`${style.child} ${isDropTarget ? style.canDrop : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {isExpanded ? (
-          // Render children items (snippets, drawings, packages)
           <FolderItems packageName={packageName} openSnippet={openSnippet} />
         ) : null}
       </div>
 
-      {/* Delete package confirmation modal */}
+      {/* Modals */}
       <DeleteModal
         title="Delete Package"
         isOpen={isDeleteModalOpen}
@@ -434,7 +489,6 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
         itemName={packageName.name}
       />
 
-      {/* Create snippet modal */}
       <CreateModal
         title="Create New Snippet"
         isOpen={isSnippetModalOpen}
@@ -443,10 +497,9 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
           setIsSnippetModalOpen(false)
         }}
         onCancel={() => setIsSnippetModalOpen(false)}
-        placeholder="Enter snippet name"
+        placeholder="Snippet name"
       />
 
-      {/* Create package modal */}
       <CreateModal
         title="Create New Package"
         isOpen={isPackageModalOpen}
@@ -455,7 +508,7 @@ export function PackageItem({ packageName, openSnippet }: PackageProps) {
           setIsPackageModalOpen(false)
         }}
         onCancel={() => setIsPackageModalOpen(false)}
-        placeholder="Enter package name"
+        placeholder="Package name"
       />
     </div>
   )

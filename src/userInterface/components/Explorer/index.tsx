@@ -21,6 +21,12 @@ import { useSnippetAdapter, usePackageAdapter } from '../../../adapters/PackageA
 import { PackageStatus } from '../../../core/repositories/PackageState'
 import { useNavigate } from 'react-router-dom'
 import { CreateModal } from '../Modal'
+import { moveSnippet } from '../../../core/usecases/Snippet'
+import { movePackage } from '../../../core/usecases/Package'
+import { moveDrawing } from '../../../core/usecases/Drawing'
+import { useLocalPackageDatabase } from '../../../infrastructure/databases/LocalPackageDatabase'
+import { useAppDispatch } from '../../../infrastructure/state/app/hooks'
+import { useReduxPackageState } from '../../../infrastructure/state/PackageState'
 
 // --- ExplorerProps and related interfaces ---
 
@@ -112,7 +118,6 @@ export function Explorer({ workspace }: ExplorerProps) {
     createPackage({ name })
     setPackageModalOpen(false)
   }
-
   const handleDrawingModalOk = (name: string) => {
     createDrawing({ name })
     setDrawingModalOpen(false)
@@ -264,7 +269,16 @@ export function Snippet({ package: pkg, snippet, showContextMenu }: SnippetProps
     { icon: DesktopDownloadIcon, text: 'Download Snippet', onClick: downloadSnippet },
   ]
   return (
-    <NavLinkPersist to={`/editor/${pkg.parentId}/${pkg.id}/${snippet.id}`} className={styles.item} onContextMenu={(event) => showContextMenu(event, snippetContextOptions)}>
+    <NavLinkPersist
+      to={`/editor/${pkg.parentId}/${pkg.id}/${snippet.id}`}
+      className={styles.item}
+      onContextMenu={(event) => showContextMenu(event, snippetContextOptions)}
+      draggable
+      onDragStart={(e) => {
+        const data = { type: 'snippet', id: snippet.id }
+        e.dataTransfer.setData('application/json', JSON.stringify(data))
+      }}
+    >
       <SnippetIcon />
       {snippet.name}
     </NavLinkPersist>
@@ -274,9 +288,19 @@ export function Snippet({ package: pkg, snippet, showContextMenu }: SnippetProps
 // --- DrawingItem Component ---
 export function DrawingItem({ package: pkg, drawing, showContextMenu }: DrawingItemProps) {
   const drawingContextOptions: ContextMenuOptions = [
+    
   ]
   return (
-    <NavLinkPersist to={`/editor/${pkg.parentId}/${pkg.id}/${drawing.id}`} className={styles.item} onContextMenu={(event) => showContextMenu(event, drawingContextOptions)}>
+    <NavLinkPersist
+      to={`/editor/${pkg.parentId}/${pkg.id}/${drawing.id}`}
+      className={styles.item}
+      onContextMenu={(event) => showContextMenu(event, drawingContextOptions)}
+      draggable
+      onDragStart={(e) => {
+        const data = { type: 'drawing', id: drawing.id }
+        e.dataTransfer.setData('application/json', JSON.stringify(data))
+      }}
+    >
       <span>{drawing.name}</span>
     </NavLinkPersist>
   )
@@ -286,6 +310,11 @@ export function DrawingItem({ package: pkg, drawing, showContextMenu }: DrawingI
 export function PackageItem({ package: pkg, showContextMenu }: PackageItemProps) {
   const { deletePackage, renamePackage } = usePackageAdapter(pkg)
   const navigate = useNavigate()
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dispatch = useAppDispatch()
+  const localDatabase = useLocalPackageDatabase('db1')
+  const directoryState = useReduxPackageState(dispatch)
+
   const renameThisPackage = async (event: React.MouseEvent<HTMLSpanElement, MouseEvent>) => {
     event.preventDefault()
     const newName = prompt(`Enter New Name for package: ${pkg.name}`, pkg.name)
@@ -301,8 +330,44 @@ export function PackageItem({ package: pkg, showContextMenu }: PackageItemProps)
     null,
     { icon: LinkExternalIcon, text: 'Open Package in Editor', onClick: openPackageInEditor },
   ]
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const raw = e.dataTransfer.getData('application/json')
+    if (!raw) return
+    const data = JSON.parse(raw)
+    if (data.type === 'snippet') {
+      await moveSnippet(data.id, pkg.id, localDatabase, directoryState)
+    } else if (data.type === 'drawing') {
+      await moveDrawing(data.id, pkg.id, localDatabase, directoryState)
+    } else if (data.type === 'package') {
+      await movePackage(data.id, pkg.id, localDatabase, directoryState)
+    }
+  }
+
   return (
-    <NavLinkPersist to={`/explorer/${pkg.parentId}/${pkg.id}`} className={styles.item} onContextMenu={(event) => showContextMenu(event, packageContextOptions)}>
+    <NavLinkPersist
+      to={`/explorer/${pkg.parentId}/${pkg.id}`}
+      className={`${styles.item} ${isDragOver ? styles.dragOver : ''}`}
+      onContextMenu={(event) => showContextMenu(event, packageContextOptions)}
+      draggable
+      onDragStart={(e) => {
+        const data = { type: 'package', id: pkg.id }
+        e.dataTransfer.setData('application/json', JSON.stringify(data))
+      }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {pkg.id === 'root' ? <VMIcon /> : <PackageIcon />}
       {pkg.name}
     </NavLinkPersist>

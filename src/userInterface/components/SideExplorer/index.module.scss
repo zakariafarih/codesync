@@ -1,3 +1,4 @@
+// Existing folder and file styles remain unchanged
 .folder, .file {
   .name {
     display: flex;
@@ -12,12 +13,10 @@
     .left {
       gap: 8px;
     }
-
     .right > * {
       opacity: 0;
       transition: opacity 150ms ease-in-out;
     }
-
     &:hover .right > *, &:focus .right > * {
       opacity: 1;
     }
@@ -31,7 +30,6 @@
   box-shadow: inset 1px 0 rgb(54, 54, 54);
   text-decoration: none;
   color: currentColor;
-
   &:hover {
     box-shadow: inset 1px 0 rgb(255, 102, 255);
     & > .name {
@@ -41,7 +39,6 @@
   &:first-child {
     margin-top: 4px;
   }
-
   @for $i from 1 through 20 {
     &:nth-child(#{$i}n) {
       animation: bringin #{$i * 100}ms ease-out forwards;
@@ -65,7 +62,6 @@
   gap: 8px;
   align-items: stretch;
   user-select: none;
-
   .icon {
     display: flex;
     justify-content: center;
@@ -103,8 +99,31 @@
   &:hover {
     background: hsl(0, 0%, 25%);
   }
-
   @media (any-pointer: coarse) {
     padding: 16px;
   }
+}
+
+// Drag and drop visual feedback
+.dragging {
+  opacity: 0.5;
+  background: rgba(130, 170, 255, 0.05);
+}
+
+.canDrop {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(130, 170, 255, 0.05);
+    border: 2px dashed #82AAFF;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+}
+
+.dragOver {
+  outline: 2px dashed #82AAFF;
+  background-color: rgba(130, 170, 255, 0.1);
 }

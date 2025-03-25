@@ -92,3 +92,27 @@ export async function deleteDrawing(
   state.deleteDrawingMetadata(drawing)
   state.setDrawingStatus(drawing, DrawingStatus.Deleted)
 }
+
+export const moveDrawing = async (
+  drawingId: string,
+  newParentId: string,
+  database: PackageDatabase,
+  state: PackageState
+): Promise<void> => {
+  // Fetch current drawing metadata
+  const drawingMetadata = await database.fetchDrawingMetadata({ id: drawingId })
+  
+  // Update parentId and editedAt timestamp
+  const updatedMetadata: Package.DrawingMetadata = {
+    ...drawingMetadata,
+    parentId: newParentId,
+    editedAt: Date.now(),
+  }
+
+  // Persist the updated metadata to the database
+  await database.updateDrawingMetadata(updatedMetadata)
+
+  // Update the state with the new drawing metadata
+  state.setDrawingMetadata(updatedMetadata)
+}
+
