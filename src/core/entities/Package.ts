@@ -5,6 +5,7 @@ export namespace Package {
     package = 'package',
     snippet = 'snippet',
     drawing = 'drawing',
+    text = 'text'
   }
 
   export interface Node {
@@ -33,13 +34,28 @@ export namespace Package {
     type: NodeType.package
   }
 
+  export interface TextMetadata extends Node {
+    type: NodeType.text
+  }
+
+  export interface TextContent {
+    id: TextMetadata['id']
+    lexicalData: string  
+  }
+
   export interface SnippetContent {
     id: SnippetMetadata['id']
     content: string
   }
 
+  export type PackageContent = (
+    | SnippetMetadata 
+    | PackageMetadata 
+    | DrawingMetadata 
+    | TextMetadata
+  )[];
+
   export type SnippetType = SnippetMetadata & SnippetContent
-  export type PackageContent = (SnippetMetadata | PackageMetadata | DrawingMetadata)[];
 
   export const Workspace: PackageMetadata = {
     type: NodeType.package,

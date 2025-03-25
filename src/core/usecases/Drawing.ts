@@ -31,12 +31,10 @@ export async function createDrawing(
     sceneData: '',
   }
 
-  // Optimistic updates
   state.setDrawingStatus(drawingMetadata, DrawingStatus.Creating)
   state.setDrawingMetadata(drawingMetadata)
   state.setDrawingContent(drawingContent)
 
-  // Persist
   await database.createDrawingMetadata(drawingMetadata)
   await database.createDrawingContent(drawingContent)
 
@@ -83,14 +81,30 @@ export async function deleteDrawing(
   database: PackageDatabase,
   state: PackageState
 ): Promise<void> {
-  state.setDrawingStatus(drawing, DrawingStatus.Deleting)
+  try {
+    state.setDrawingStatus(drawing, DrawingStatus.Deleting)
 
-  await database.deleteDrawingContent(drawing)
-  await database.deleteDrawingMetadata(drawing)
+    try {
+      await database.deleteDrawingContent(drawing)
+    } catch (error) {
+      console.warn('Drawing content not found, continuing with metadata deletion')
+    }
 
-  state.deleteDrawingContent(drawing)
-  state.deleteDrawingMetadata(drawing)
-  state.setDrawingStatus(drawing, DrawingStatus.Deleted)
+    try {
+      await database.deleteDrawingMetadata(drawing)
+    } catch (error) {
+      console.warn('Drawing metadata not found, continuing with state cleanup')
+    }
+
+    state.deleteDrawingContent(drawing)
+    state.deleteDrawingMetadata(drawing)
+    
+    state.setDrawingStatus(drawing, DrawingStatus.Deleted)
+  } catch (error) {
+    console.error('Failed to delete drawing:', error)
+    state.setDrawingStatus(drawing, DrawingStatus.Default)
+    throw new Error(`Failed to delete drawing: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
 }
 
 export const moveDrawing = async (
@@ -99,20 +113,40 @@ export const moveDrawing = async (
   database: PackageDatabase,
   state: PackageState
 ): Promise<void> => {
-  // Fetch current drawing metadata
   const drawingMetadata = await database.fetchDrawingMetadata({ id: drawingId })
   
-  // Update parentId and editedAt timestamp
   const updatedMetadata: Package.DrawingMetadata = {
     ...drawingMetadata,
     parentId: newParentId,
     editedAt: Date.now(),
   }
 
-  // Persist the updated metadata to the database
   await database.updateDrawingMetadata(updatedMetadata)
 
-  // Update the state with the new drawing metadata
   state.setDrawingMetadata(updatedMetadata)
 }
 
+export async function updateDrawingMetadata(
+  drawing: Package.DrawingMetadata,
+  database: PackageDatabase,
+  state: PackageState
+): Promise<void> {
+  try {
+    state.setDrawingStatus(drawing, DrawingStatus.Loading)
+
+    const updatedDrawing = {
+      ...drawing,
+      editedAt: Date.now()
+    }
+
+    await database.updateDrawingMetadata(updatedDrawing)
+
+    state.setDrawingMetadata(updatedDrawing)
+
+    state.setDrawingStatus(drawing, DrawingStatus.Default)
+  } catch (error) {
+    console.error('Failed to update drawing metadata:', error)
+    state.setDrawingStatus(drawing, DrawingStatus.Error)
+    throw error
+  }
+}

@@ -1,0 +1,25 @@
+// src/userInterface/components/TextEditorWrapper/TextEditorWrapper.module.scss
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #021627;
+  color: #d6deeb;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background-color: #031c33;
+  border-bottom: 1px solid #1f406a;
+}
+
+.loading {
+  padding: 16px;
+  text-align: center;
+  font-size: 1.2em;
+}

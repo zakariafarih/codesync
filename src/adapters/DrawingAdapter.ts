@@ -1,7 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux'
 import { useLocalPackageDatabase } from '../infrastructure/databases/LocalPackageDatabase'
 import { useReduxPackageState, selectDrawingMetadata, selectDrawingContent, selectDrawingStatus } from '../infrastructure/state/PackageState'
-import { createDrawing, fetchDrawing, updateDrawing, deleteDrawing } from '../core/usecases/Drawing'
+import { createDrawing, fetchDrawing, updateDrawing, deleteDrawing, updateDrawingMetadata } from '../core/usecases/Drawing'
 import { Package as PackageEntity } from '../core/entities/Package'
 import { DrawingStatus } from '../core/repositories/PackageState'
 import { AppDispatch } from '../infrastructure/state/app/store'
@@ -22,10 +22,22 @@ export function useDrawingAdapter(drawing: Pick<PackageEntity.DrawingMetadata, '
     () => async () => {
       try {
         const result = await fetchDrawing(drawing, localDatabase, directoryState)
-        console.log('Drawing loaded:', result) // Debug log
+        console.log('Drawing loaded:', result)
         return result
       } catch (err) {
         console.error('Failed to load drawing:', err)
+        throw err
+      }
+    },
+    [drawing.id, localDatabase, directoryState]
+  )
+
+  const updateDrawing = useMemo(
+    () => async (updatedDrawing: PackageEntity.DrawingMetadata) => {
+      try {
+        await updateDrawingMetadata(updatedDrawing, localDatabase, directoryState)
+      } catch (err) {
+        console.error('Failed to update drawing:', err)
         throw err
       }
     },
@@ -44,10 +56,10 @@ export function useDrawingAdapter(drawing: Pick<PackageEntity.DrawingMetadata, '
           ...drawingMetadata,
           sceneData,
           editedAt: Date.now(),
-          content: sceneData, // Make sure content is also updated
+          content: sceneData,
         }
         
-        await updateDrawing(
+        await updateDrawingMetadata(
           updatedDrawing,
           localDatabase,
           directoryState
@@ -114,5 +126,6 @@ export function useDrawingAdapter(drawing: Pick<PackageEntity.DrawingMetadata, '
     saveDrawing,
     removeDrawing,
     downloadDrawing,
+    updateDrawing,
   }
 }

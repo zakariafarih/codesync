@@ -1,6 +1,12 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { Package } from '../../core/entities/Package'
-import { PackageState, SnippetStatus, PackageStatus, DrawingStatus } from '../../core/repositories/PackageState'
+import {
+  PackageState,
+  SnippetStatus,
+  PackageStatus,
+  DrawingStatus,
+  TextStatus
+} from '../../core/repositories/PackageState'
 import { AppDispatch, RootState } from './app/store'
 import { createSelector } from 'reselect'
 
@@ -14,6 +20,10 @@ interface ExplorerState {
   drawingMetadata: Record<Package.NodeId, Package.DrawingMetadata>
   drawingContent: Record<Package.NodeId, Package.DrawingContent>
   drawingStatus: Record<Package.NodeId, DrawingStatus>
+
+  textMetadata: Record<Package.NodeId, Package.TextMetadata>
+  textContent: Record<Package.NodeId, Package.TextContent>
+  textStatus: Record<Package.NodeId, TextStatus>
 }
 
 const initialState: ExplorerState = {
@@ -29,6 +39,9 @@ const initialState: ExplorerState = {
   drawingMetadata: {},
   drawingContent: {},
   drawingStatus: {},
+  textMetadata: {},
+  textContent: {},
+  textStatus: {},
 }
 
 const reduxPackageState = createSlice({
@@ -44,7 +57,6 @@ const reduxPackageState = createSlice({
     setSnippetContent(state, { payload }: PayloadAction<Package.SnippetContent>) {
       state.snippetContent[payload.id] = payload
     },
-
     setSnippetStatus(state, { payload }: PayloadAction<{ snippet: Pick<Package.Node, 'id'>, status: SnippetStatus }>) {
       if (payload.status === SnippetStatus.Deleted) {
         delete state.snippetStatus[payload.snippet.id]
@@ -59,7 +71,6 @@ const reduxPackageState = createSlice({
         state.packageStatus[payload.pkg.id] = payload.status
       }
     },
-
     deletePackageMetadata(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
       delete state.packageMetadata[payload.id]
     },
@@ -70,7 +81,6 @@ const reduxPackageState = createSlice({
       delete state.snippetContent[payload.id]
     },
 
-    // DRAWING
     setDrawingMetadata(state, { payload }: PayloadAction<Package.DrawingMetadata>) {
       state.drawingMetadata[payload.id] = payload
     },
@@ -90,10 +100,29 @@ const reduxPackageState = createSlice({
     deleteDrawingContent(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
       delete state.drawingContent[payload.id]
     },
+
+    setTextMetadata(state, { payload }: PayloadAction<Package.TextMetadata>) {
+      state.textMetadata[payload.id] = payload
+    },
+    setTextContent(state, { payload }: PayloadAction<Package.TextContent>) {
+      state.textContent[payload.id] = payload
+    },
+    setTextStatus(state, { payload }: PayloadAction<{ text: Pick<Package.Node, 'id'>; status: TextStatus }>) {
+      if (payload.status === TextStatus.Deleted) {
+        delete state.textStatus[payload.text.id]
+      } else {
+        state.textStatus[payload.text.id] = payload.status
+      }
+    },
+    deleteTextMetadata(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
+      delete state.textMetadata[payload.id]
+    },
+    deleteTextContent(state, { payload }: PayloadAction<Pick<Package.Node, 'id'>>) {
+      delete state.textContent[payload.id]
+    },
   },
 })
 
-// Updated selectors with memoization using reselect
 export const selectDrawingMetadata = (drawing: Pick<Package.DrawingMetadata, 'id'>) =>
   createSelector(
     [(state: RootState) => state.packageState.drawingMetadata],
@@ -118,26 +147,30 @@ export const selectPackageContent = (packageMetadata: Pick<Package.PackageMetada
       (state: RootState) => state.packageState.packageMetadata,
       (state: RootState) => state.packageState.snippetMetadata,
       (state: RootState) => state.packageState.drawingMetadata,
+      (state: RootState) => state.packageState.textMetadata,
     ],
-    (pkgMeta, snippetMeta, drawingMeta) => {
+    (pkgMeta, snippetMeta, drawingMeta, textMeta) => {
       const contentMap = new Map<string, Package.PackageContent[number]>()
   
-      // Add package nodes
       Object.values(pkgMeta).forEach((node) => {
         if (node && node.parentId === packageMetadata.id) {
           contentMap.set(node.id, node)
         }
       })
   
-      // Add snippet nodes
       Object.values(snippetMeta).forEach((node) => {
         if (node && node.parentId === packageMetadata.id) {
           contentMap.set(node.id, node)
         }
       })
   
-      // Add drawing nodes
       Object.values(drawingMeta).forEach((node) => {
+        if (node && node.parentId === packageMetadata.id) {
+          contentMap.set(node.id, node)
+        }
+      })
+
+      Object.values(textMeta).forEach((node) => {
         if (node && node.parentId === packageMetadata.id) {
           contentMap.set(node.id, node)
         }
@@ -146,7 +179,6 @@ export const selectPackageContent = (packageMetadata: Pick<Package.PackageMetada
       return Array.from(contentMap.values())
     }
   )
-  
 
 export const selectPackageMetadata = (packageMetadata: Pick<Package.PackageMetadata, 'id'>) =>
   createSelector(
@@ -193,9 +225,26 @@ export const selectSnippetStatus = (snippetMetadata: Pick<Package.SnippetMetadat
     (snippetStatusMap) => snippetStatusMap[snippetMetadata.id]
   )
 
+export const selectTextMetadata = (text: Pick<Package.TextMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.textMetadata],
+    (textMetadata) => textMetadata[text.id]
+  )
+
+export const selectTextContent = (text: Pick<Package.TextMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.textContent],
+    (textContent) => textContent[text.id]
+  )
+
+export const selectTextStatus = (text: Pick<Package.TextMetadata, 'id'>) =>
+  createSelector(
+    [(state: RootState) => state.packageState.textStatus],
+    (textStatus) => textStatus[text.id]
+  )
+
 export default reduxPackageState.reducer
 
-// ReduxPackageStateManager implementation remains unchanged
 class ReduxPackageStateManager implements PackageState {
   private readonly dispatch: AppDispatch
 
@@ -212,14 +261,12 @@ class ReduxPackageStateManager implements PackageState {
   setSnippetContent(content: Package.SnippetContent): void {
     this.dispatch(reduxPackageState.actions.setSnippetContent(content))
   }
-
   setSnippetStatus(snippet: Pick<Package.Node, 'id'>, status: SnippetStatus): void {
     this.dispatch(reduxPackageState.actions.setSnippetStatus({ snippet, status }))
   }
   setPackageStatus(pkg: Pick<Package.Node, 'id'>, status: PackageStatus): void {
     this.dispatch(reduxPackageState.actions.setPackageStatus({ pkg, status }))
   }
-
   deleteSnippetContent(snippet: Pick<Package.Node, 'id'>): void {
     this.dispatch(reduxPackageState.actions.deleteSnippetContent(snippet))
   }
@@ -243,6 +290,22 @@ class ReduxPackageStateManager implements PackageState {
   }
   deleteDrawingContent(drawing: Pick<Package.Node, 'id'>): void {
     this.dispatch(reduxPackageState.actions.deleteDrawingContent(drawing))
+  }
+  // NEW: Text methods
+  setTextMetadata(text: Package.TextMetadata): void {
+    this.dispatch(reduxPackageState.actions.setTextMetadata(text))
+  }
+  setTextContent(content: Package.TextContent): void {
+    this.dispatch(reduxPackageState.actions.setTextContent(content))
+  }
+  setTextStatus(text: Pick<Package.Node, 'id'>, status: TextStatus): void {
+    this.dispatch(reduxPackageState.actions.setTextStatus({ text, status }))
+  }
+  deleteTextMetadata(text: Pick<Package.Node, 'id'>): void {
+    this.dispatch(reduxPackageState.actions.deleteTextMetadata(text))
+  }
+  deleteTextContent(text: Pick<Package.Node, 'id'>): void {
+    this.dispatch(reduxPackageState.actions.deleteTextContent(text))
   }
 }
 

@@ -54,12 +54,22 @@ export function useSnippetAdapter(metadata: Pick<PackageEntity.SnippetContent, '
     }, localDatabase, directoryState)
   }, [metadata.id])
 
-  const renameSnippet = useMemo(() => (newName: PackageEntity.SnippetMetadata['name']) => {
-    Snippet.saveSnippetMetadata({
-      ...snippetMetadata,
-      name: newName,
-    }, localDatabase, directoryState)
-  }, [metadata.id])
+  const renameSnippet = useMemo(() => async (newName: string) => {
+    if (!snippetMetadata) {
+      console.error('Cannot rename snippet: metadata not found')
+      return
+    }
+    try {
+      await Snippet.saveSnippetMetadata({
+        ...snippetMetadata,
+        name: newName,
+        editedAt: Date.now()
+      }, localDatabase, directoryState)
+    } catch (err) {
+      console.error('Failed to rename snippet:', err)
+      throw err
+    }
+  }, [snippetMetadata, localDatabase, directoryState])
 
   const downloadSnippet = useMemo(() => () => {
     Snippet.downloadSnippet(metadata, localDatabase, directoryState, downloader)

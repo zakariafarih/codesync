@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { Package as PackageEntity } from '../../../core/entities/Package'
 import { MonacoEditorWrapper } from '../../components/MonacoEditorWrapper'
 import { ExcalidrawEditorWrapper } from '../../components/ExcalidrawEditorWrapper'
+import { TextEditorWrapper } from '../../components/TextEditorWrapper'
 import { SideExplorer } from '../../components/SideExplorer'
 import { usePackageAdapter } from '../../../adapters/PackageAdapter'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -19,7 +20,8 @@ type TargetKey = React.MouseEvent | React.KeyboardEvent | string
 type EditorNode =
   | PackageEntity.SnippetMetadata
   | PackageEntity.DrawingMetadata
-  | PackageEntity.PackageMetadata;
+  | PackageEntity.PackageMetadata
+  | PackageEntity.TextMetadata
 
 export function EditorPage() {
   const { parentId, folderId, fileId } = useParams()
@@ -33,8 +35,8 @@ export function EditorPage() {
     {
       key: '-1',
       label: 'About',
-      children: <AboutAppWrapper />
-    }
+      children: <AboutAppWrapper />,
+    },
   ])
   const [activeFileKey, setActiveFileKey] = useState<string>()
 
@@ -71,6 +73,8 @@ export function EditorPage() {
           editor = <MonacoEditorWrapper snippetMetadata={node} />
         } else if (node.type === PackageEntity.NodeType.drawing) {
           editor = <ExcalidrawEditorWrapper drawingMetadata={node} />
+        } else if (node.type === PackageEntity.NodeType.text) {
+          editor = <TextEditorWrapper textMetadata={node} />
         } else {
           editor = <div>Package Editor Not Implemented: {node.name}</div>
         }
@@ -111,7 +115,11 @@ export function EditorPage() {
     if (fileId) {
       packageContent.forEach((node) => {
         if (node.id === fileId) {
-          if (node.type === PackageEntity.NodeType.snippet || node.type === PackageEntity.NodeType.drawing) {
+          if (
+            node.type === PackageEntity.NodeType.snippet ||
+            node.type === PackageEntity.NodeType.drawing ||
+            node.type === PackageEntity.NodeType.text
+          ) {
             openNodeInEditor(node)
           }
         }
@@ -147,7 +155,7 @@ export function EditorPage() {
   return (
     <div className={style.container}>
       {windowWidth >= 800 ? (
-        <SubNav title='Editor' className={style.sideNav}>
+        <SubNav title="Editor" className={style.sideNav}>
           <SideExplorer
             workspace={packageMetadata}
             openSnippet={(node) => openNodeInEditor(node)}

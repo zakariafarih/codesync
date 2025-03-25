@@ -31,6 +31,20 @@ export enum DrawingStatus {
   Deleting = 'Deleting',
   Deleted = 'Deleted',
   Default = 'Default',
+  Loading = 'Loading', 
+  Error = 'Error'
+}
+
+export enum TextStatus {
+  Creating = 'Creating',
+  ContentLoading = 'ContentLoading',
+  ContentLoaded = 'Default',
+  ChangesUnsaved = 'ChangesUnsaved',
+  ChangesSaving = 'ChangesSaving',
+  ChangesSaved = 'Default',
+  Deleting = 'Deleting',
+  Deleted = 'Deleted',
+  Default = 'Default',
 }
 
 export interface PackageState {
@@ -51,4 +65,11 @@ export interface PackageState {
 
   deleteDrawingMetadata(drawing: Pick<Package.Node, 'id'>): void
   deleteDrawingContent(drawing: Pick<Package.Node, 'id'>): void
+
+  setTextMetadata(textMetadata: Package.TextMetadata): void
+  setTextContent(textContent: Package.TextContent): void
+  setTextStatus(text: Pick<Package.Node, 'id'>, status: TextStatus): void
+
+  deleteTextMetadata(text: Pick<Package.Node, 'id'>): void
+  deleteTextContent(text: Pick<Package.Node, 'id'>): void
 }
